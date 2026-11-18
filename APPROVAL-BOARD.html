@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <title>On A Roll — Posts for approval</title>
   <style>
-    :root{--ink:#0b1c28;--muted:#3a4652;--line:#cfd8e1;--paper:#eef2f5;--card:#fff;--blue:#009edf;--blue-dark:#0077a8;--ok:#1f7a4d;--warn:#9a6b00;--edit:#0b5cab}
+    :root{--ink:#0b1c28;--muted:#2a343d;--line:#cfd8e1;--paper:#eef2f5;--card:#fff;--blue:#009edf;--blue-dark:#0077a8;--ok:#1f7a4d;--warn:#9a6b00;--edit:#0b5cab}
     *{box-sizing:border-box}
     body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;background:var(--paper);color:var(--ink);line-height:1.45}
     .banner{background:var(--blue-dark);color:#fff;text-align:center;padding:.75rem 1rem;font-weight:700}
@@ -22,12 +22,12 @@
     .meta{display:flex;justify-content:space-between;gap:.75rem;align-items:flex-start;flex-wrap:wrap;margin-bottom:.55rem}
     .id{font-size:.78rem;font-weight:750;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
     .status{font-size:.7rem;font-weight:750;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:.28rem .7rem;border:1px solid}
-    .status.awaiting{color:var(--warn);background:#fff7e6;border-color:#f0d9a0}
+    .status.awaiting{color:#6b4a00;background:#fff7e6;border-color:#e0c070}
     .status.approved{color:#0f5c38;background:#e7f6ee;border-color:#b7e0c7}
     .status.edit{color:#0b5cab;background:#e8f2fc;border-color:#b7d4f0}
     .status.change{color:#7a3e00;background:#fff1e6;border-color:#f0c9a0}
     h2{margin:0 0 .35rem;font-size:1.45rem;letter-spacing:-.02em}
-    .blurb{margin:0 0 1rem;color:var(--muted)}
+    .blurb{margin:0 0 1rem;color:var(--muted);font-weight:500}
     .section{font-size:.72rem;font-weight:750;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:1rem 0 .45rem}
     pre{margin:0;white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:.9rem;line-height:1.4;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:1rem 1.05rem}
     .fb-wrap{margin-top:1.1rem;background:#e4ebf1;border-radius:16px;padding:1rem;border:1px solid var(--line)}
@@ -40,9 +40,9 @@
     }
     .actions button:hover{transform:translateY(-1px)}
     .actions button:active{transform:translateY(0)}
-    .btn-approve{background:#1f7a4d;color:#fff;box-shadow:0 6px 16px rgba(31,122,77,.28)}
-    .btn-edit{background:#0b5cab;color:#fff;box-shadow:0 6px 16px rgba(11,92,171,.28)}
-    .btn-change{background:#c45c12;color:#fff;box-shadow:0 6px 16px rgba(196,92,18,.28)}
+    .btn-approve{background:#1f7a4d;color:#fff;box-shadow:0 4px 12px rgba(11,28,40,.16)}
+    .btn-edit{background:#0b5cab;color:#fff;box-shadow:0 4px 12px rgba(11,28,40,.16)}
+    .btn-change{background:#c45c12;color:#fff;box-shadow:0 4px 12px rgba(11,28,40,.16)}
     .actions button.is-selected{outline:3px solid rgba(11,28,40,.18);outline-offset:2px}
     .note{margin:.7rem 0 0;font-size:.88rem;color:var(--muted);min-height:1.2em}
     .summary{
