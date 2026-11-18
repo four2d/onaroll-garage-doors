@@ -112,6 +112,7 @@
   <header>
     <p class="eyebrow">On A Roll Garage Doors · Facebook &amp; Instagram</p>
     <h1>Review your posts</h1>
+    <!-- board-v3 -->
     <p>Approve as-is, edit the caption, or ask for a new suggestion. Nothing goes live until Pete posts the approved ones.</p>
   </header>
 
@@ -125,7 +126,7 @@
   </div>
 
   <script>
-  const KEY = "oar-jon-board-v2";
+  const KEY = "oar-jon-board-v3";
   const PAGE = "On A Roll Garage Doors";
 
   const SUGGESTIONS = {
@@ -313,7 +314,7 @@
     y += 36;
 
     ctx.fillStyle = "#fff";
-    ctx.font = "780 72px Helvetica, Arial, sans-serif";
+    ctx.font = "700 72px Helvetica, Arial, sans-serif";
     ctx.shadowColor = "rgba(0,0,0,0.35)";
     ctx.shadowBlur = 16;
     for (const line of variant.headline) {
@@ -361,6 +362,14 @@
       } else line = test;
     }
     if (line) ctx.fillText(line, x, y);
+  }
+
+  function escapeHTML(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   }
 
   function badgeHTML(status) {
@@ -418,13 +427,6 @@
     if (status === "approved") return "Ticked for approval. Pete can post this version.";
     if (status === "editing") return "Edit the caption, then Save — that will approve it. Or Cancel.";
     return "Approve as-is, edit the caption, or Change for a new suggestion.";
-  }
-
-  function escapeHTML(str) {
-    return String(str)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
   }
 
   async function ensureImages(state) {
