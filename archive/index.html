@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <title>On A Roll — Past weeks</title>
+  <style>
+    :root{
+      --ink:#0b1c28; --muted:#3a4652; --line:#d5dde5; --paper:#e8eef3; --card:#fff;
+      --blue:#009edf; --blue-dark:#0077a8; --ok:#1f7a4d; --ok-bg:#e7f6ee;
+      --shadow:0 10px 28px rgba(11,28,40,.08); --radius:14px;
+      --focus:0 0 0 3px rgba(0,119,168,.28);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:Helvetica,Arial,"Segoe UI",sans-serif;
+      background:var(--paper); color:var(--ink); line-height:1.45;
+      -webkit-font-smoothing:antialiased;
+    }
+    button:focus-visible, a:focus-visible{outline:none; box-shadow:var(--focus)}
+    header{
+      background:var(--ink); color:#fff;
+      padding:1.5rem 1.25rem 1.4rem; border-bottom:3px solid var(--blue);
+    }
+    header .row{max-width:720px; margin:0 auto}
+    header a.back{
+      color:#d7e4ec; font-size:.88rem; font-weight:650; text-decoration:none;
+      border-bottom:1px solid rgba(215,228,236,.4);
+    }
+    header a.back:hover{border-bottom-color:#fff; color:#fff}
+    h1{
+      margin:.45rem 0 0; font-size:clamp(1.45rem,3.4vw,1.85rem);
+      font-weight:750; letter-spacing:-.025em;
+    }
+    header p{margin:.5rem 0 0; color:#d7e4ec; max-width:36rem; font-size:.95rem}
+    .wrap{max-width:720px; margin:0 auto; padding:1.35rem 1rem 4rem}
+    .empty{
+      background:var(--card); border:1px dashed #b7c4d0; border-radius:var(--radius);
+      padding:1.75rem 1.25rem; text-align:center; color:var(--muted);
+    }
+    .empty strong{display:block; color:var(--ink); font-size:1.05rem; margin:0 0 .35rem}
+    .empty code{font-size:.82rem; background:#f0f4f8; padding:.15rem .4rem; border-radius:6px}
+    .list{display:flex; flex-direction:column; gap:.75rem}
+    .week{
+      display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.85rem;
+      background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+      padding:1rem 1.1rem; text-decoration:none; color:inherit;
+      box-shadow:0 2px 10px rgba(11,28,40,.05);
+      transition:border-color .15s ease, transform .12s ease;
+    }
+    .week:hover{border-color:#b7c4d0; transform:translateY(-1px)}
+    .week:active{transform:scale(.99)}
+    .week .label{margin:0; font-size:1.05rem; font-weight:750; letter-spacing:-.01em}
+    .week .posted{margin:.25rem 0 0; font-size:.82rem; color:var(--muted)}
+    .week .posts{margin:.45rem 0 0; font-size:.84rem; color:var(--muted); line-height:1.4}
+    .week .go{
+      flex:0 0 auto; font-size:.88rem; font-weight:750; color:var(--blue-dark);
+      background:#eef5fb; border:1px solid #b7d4f0; border-radius:999px;
+      padding:.55rem .9rem;
+    }
+    .err{color:#9b2c2c; font-size:.9rem}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="row">
+      <a class="back" href="../">← This week’s board</a>
+      <h1>Past weeks</h1>
+      <p>Approved posts kept after they went live — dated copies for Pete and Jon.</p>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div id="list" class="list" aria-live="polite">
+      <p class="empty">Loading archive…</p>
+    </div>
+  </div>
+
+  <script>
+  async function loadWeeks() {
+    const res = await fetch(`weeks.json?ts=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) throw new Error("Couldn’t load weeks.json");
+    const data = await res.json();
+    return Array.isArray(data) ? data : (data.weeks || []);
+  }
+
+  function render(weeks) {
+    const root = document.getElementById("list");
+    if (!weeks.length) {
+      root.innerHTML = `<div class="empty">
+        <strong>No weeks archived yet</strong>
+        When all three posts are approved and posted, tap <em>Archive week</em> on the board,
+        then drop the downloaded <code>YYYY-MM-DD.html</code> and <code>weeks.json</code> into this folder and push.
+      </div>`;
+      return;
+    }
+    root.innerHTML = weeks.map(w => {
+      const lines = (w.posts || []).map(p => `${p.day}: ${p.line1 || ""} ${p.line2 || ""}`.trim()).filter(Boolean);
+      const file = w.file || `${w.id}.html`;
+      return `<a class="week" href="${file}">
+        <div>
+          <p class="label">${w.label || w.id}</p>
+          <p class="posted">Posted ${w.postedAt || "—"}</p>
+          ${lines.length ? `<p class="posts">${lines.join(" · ")}</p>` : ""}
+        </div>
+        <span class="go">Open</span>
+      </a>`;
+    }).join("");
+  }
+
+  loadWeeks()
+    .then(render)
+    .catch(err => {
+      console.error(err);
+      document.getElementById("list").innerHTML =
+        `<p class="err">Couldn’t load the archive index. Check archive/weeks.json is on GitHub Pages.</p>`;
+    });
+  </script>
+</body>
+</html>
