@@ -4,63 +4,236 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <title>On A Roll — Social approval</title>
+  <title>On A Roll — Post studio</title>
   <style>
     :root{
-      --ink:#0b1c28; --muted:#2a343d; --line:#d5dde5; --paper:#eef2f5; --card:#fff;
-      --blue:#009edf; --blue-dark:#0077a8; --fb:#1877f2; --ok:#1f7a4d;
+      --ink:#0b1c28; --muted:#1e2a33; --line:#d5dde5; --paper:#eef2f5; --card:#fff;
+      --blue:#009edf; --blue-dark:#0077a8; --ok:#1f7a4d; --warn:#c45c12;
+      --focus:0 0 0 3px rgba(0,158,223,.35);
     }
     *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
     body{
       margin:0; font-family:Helvetica,Arial,"Segoe UI",sans-serif;
       background:var(--paper); color:var(--ink); line-height:1.4;
     }
-    header{
-      background:var(--ink); color:#fff; padding:1.5rem 1.2rem 1.35rem;
+    ::selection{background:rgba(0,158,223,.25)}
+    button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible{
+      outline:none; box-shadow:var(--focus);
     }
-    header .eyebrow{
-      margin:0 0 .4rem; font-size:.7rem; letter-spacing:.14em; text-transform:uppercase;
-      color:#d7eaf5; opacity:.9;
-    }
-    header h1{margin:0; font-size:clamp(1.35rem,3vw,1.8rem); font-weight:750; letter-spacing:-.02em}
-    header p{margin:.45rem 0 0; opacity:.9; max-width:36rem; font-size:.95rem}
-    .wrap{max-width:680px; margin:0 auto; padding:1.25rem 1rem 7rem}
-    .stack{display:flex; flex-direction:column; gap:1.75rem}
 
-    /* Facebook-style card */
+    header{
+      background:var(--ink); color:#fff; padding:1.35rem 1.2rem 1.25rem;
+    }
+    header .row{display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:.75rem; max-width:1100px; margin:0 auto}
+    header h1{margin:0; font-size:clamp(1.35rem,3vw,1.75rem); font-weight:750; letter-spacing:-.02em}
+    header p{margin:.4rem 0 0; opacity:.9; max-width:34rem; font-size:.92rem}
+    .pill{
+      display:inline-flex; align-items:center; gap:.35rem;
+      padding:.2rem .55rem; border-radius:999px; background:var(--blue-dark);
+      color:#fff; font-size:.68rem; font-weight:750; letter-spacing:.04em; vertical-align:middle;
+    }
+
+    .wrap{max-width:1100px; margin:0 auto; padding:1.15rem 1rem 7.5rem}
+
+    /* —— Studio —— */
+    .studio{
+      background:var(--card); border:1px solid var(--line); border-radius:16px;
+      box-shadow:0 10px 32px rgba(11,28,40,.07); overflow:hidden; margin-bottom:1.75rem;
+    }
+    .studio-head{
+      display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.75rem;
+      padding:1rem 1.15rem; border-bottom:1px solid var(--line); background:#f7fafc;
+    }
+    .studio-head h2{margin:0; font-size:1.05rem; font-weight:750; letter-spacing:-.01em}
+    .studio-head .sub{margin:.2rem 0 0; font-size:.82rem; color:var(--muted)}
+    .studio-grid{
+      display:grid; grid-template-columns:minmax(280px,1fr) minmax(300px,1.05fr);
+      gap:0;
+    }
+    @media (max-width:860px){
+      .studio-grid{grid-template-columns:1fr}
+    }
+    .studio-form{padding:1.1rem 1.15rem 1.25rem; border-right:1px solid var(--line)}
+    @media (max-width:860px){.studio-form{border-right:0; border-bottom:1px solid var(--line)}}
+    .studio-preview{padding:1.1rem 1.15rem 1.25rem; background:#f4f7fa}
+
+    .field{margin:0 0 .85rem}
+    .field label{
+      display:block; font-size:.72rem; font-weight:750; letter-spacing:.06em;
+      text-transform:uppercase; color:var(--muted); margin-bottom:.35rem;
+    }
+    .field input[type="text"], .field textarea, .field select{
+      width:100%; font:inherit; font-size:.95rem; color:var(--ink);
+      border:1.5px solid #c9d3dc; border-radius:10px; padding:.7rem .8rem;
+      background:#fff; transition:border-color .15s ease;
+    }
+    .field input:focus, .field textarea:focus, .field select:focus{border-color:var(--blue)}
+    .field textarea{min-height:110px; resize:vertical; line-height:1.45}
+    .field .hint{margin:.3rem 0 0; font-size:.78rem; color:#5a6772}
+    .pair{display:grid; grid-template-columns:1fr 1fr; gap:.65rem}
+    @media (max-width:520px){.pair{grid-template-columns:1fr}}
+
+    .photos{display:flex; flex-wrap:wrap; gap:.5rem}
+    .photo-pick{
+      position:relative; width:72px; height:72px; border-radius:10px; overflow:hidden;
+      border:2px solid transparent; cursor:pointer; padding:0; background:#ddd;
+      box-shadow:0 2px 8px rgba(11,28,40,.12);
+    }
+    .photo-pick img{width:100%; height:100%; object-fit:cover; display:block}
+    .photo-pick[aria-pressed="true"]{border-color:var(--blue); box-shadow:0 0 0 3px rgba(0,158,223,.3)}
+    .photo-pick.upload{
+      display:grid; place-items:center; background:#e8eef3; color:var(--muted);
+      font-size:.68rem; font-weight:750; letter-spacing:.04em; text-transform:uppercase;
+      border:1.5px dashed #b7c4d0;
+    }
+    .photo-pick input{display:none}
+
+    .packs{display:flex; flex-wrap:wrap; gap:.4rem; margin-bottom:.85rem}
+    .pack{
+      appearance:none; border:1px solid #c9d3dc; background:#fff; color:var(--ink);
+      font:inherit; font-size:.8rem; font-weight:650; padding:.45rem .7rem; border-radius:999px;
+      cursor:pointer;
+    }
+    .pack:hover{border-color:var(--blue); color:var(--blue-dark)}
+    .pack:disabled{opacity:.45; cursor:not-allowed}
+
+    .studio-actions{display:flex; flex-wrap:wrap; gap:.5rem; margin-top:1rem}
+    .studio-actions button{
+      appearance:none; border:0; cursor:pointer; font:inherit; font-weight:750; font-size:.88rem;
+      padding:.72rem 1rem; border-radius:10px; color:#fff;
+      box-shadow:0 3px 10px rgba(11,28,40,.14);
+    }
+    .studio-actions button:disabled{opacity:.45; cursor:not-allowed}
+    .btn-primary{background:var(--blue-dark)}
+    .btn-dl{background:#1f7a4d}
+    .btn-ghost{background:#5c6670}
+    .btn-warn{background:var(--warn)}
+    .status-line{
+      margin:.75rem 0 0; min-height:1.2em; font-size:.85rem; color:var(--muted);
+    }
+    .status-line.ok{color:var(--ok); font-weight:650}
+    .status-line.err{color:#9b2c2c; font-weight:650}
+
+    .preview-row{display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-start; justify-content:center}
+    .preview-col{flex:0 0 auto; text-align:center}
+    .preview-col .tag{
+      font-size:.68rem; font-weight:750; letter-spacing:.08em; text-transform:uppercase;
+      color:var(--muted); margin-bottom:.45rem;
+    }
+    .preview-frame{
+      background:#111; border-radius:12px; overflow:hidden;
+      box-shadow:0 12px 36px rgba(11,28,40,.22);
+      border:1px solid #0a1218;
+    }
+    .preview-frame.fb{width:220px}
+    .preview-frame.ig{width:200px}
+    .preview-frame .stage{width:100%; position:relative; overflow:hidden; background:#0a0f14}
+    .preview-frame.fb .stage{padding-top:125%} /* 4:5 */
+    .preview-frame.ig .stage{padding-top:100%} /* 1:1 */
+    .preview-frame .stage > .creative{
+      position:absolute; inset:0; width:1080px; height:1350px;
+      transform-origin:top left;
+    }
+    .preview-frame.fb .stage > .creative{transform:scale(calc(220 / 1080))}
+    .preview-frame.ig .stage > .creative{
+      height:1080px; transform:scale(calc(200 / 1080));
+    }
+
+    /* —— Locked creative (canonical 1080×1350 / 1080×1080) —— */
+    .creative{
+      position:relative; width:1080px; height:1350px; color:#fff;
+      font-family:Helvetica,Arial,sans-serif; overflow:hidden; background:#0a0f14;
+    }
+    .creative.ig{height:1080px}
+    .creative .cr-photo{
+      position:absolute; inset:0; background-position:center; background-size:cover; background-repeat:no-repeat;
+    }
+    .creative .cr-grad{
+      position:absolute; inset:0;
+      background:linear-gradient(180deg,rgba(10,15,20,.28) 0%,rgba(10,15,20,0) 30%,rgba(10,15,20,.12) 52%,rgba(10,15,20,.78) 76%,rgba(10,15,20,.94) 100%);
+    }
+    .creative.ig .cr-grad{
+      background:linear-gradient(180deg,rgba(10,15,20,.3) 0%,rgba(10,15,20,0) 28%,rgba(10,15,20,.18) 55%,rgba(10,15,20,.82) 78%,rgba(10,15,20,.95) 100%);
+    }
+    .creative .cr-logo{
+      position:absolute; top:44px; left:44px; width:104px; height:104px; border-radius:50%;
+      background:#fff; box-shadow:0 8px 28px rgba(0,0,0,.28); display:grid; place-items:center; overflow:hidden;
+    }
+    .creative .cr-logo img{width:94px; height:94px; object-fit:contain; display:block}
+    .creative .cr-price{
+      position:absolute; top:58px; right:44px; display:flex; align-items:center; gap:10px;
+      font-size:17px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+    }
+    .creative .cr-price .from{
+      color:#0a0f14; background:#fff; padding:14px 18px; border-radius:999px;
+      box-shadow:0 6px 18px rgba(0,0,0,.18);
+    }
+    .creative .cr-price .amount{
+      color:#fff; background:#009edf; padding:14px 18px; border-radius:999px;
+      box-shadow:0 6px 18px rgba(0,158,223,.35);
+    }
+    .creative .cr-copy{position:absolute; left:52px; width:920px; bottom:64px}
+    .creative.ig .cr-copy{bottom:52px}
+    .creative .cr-rule{width:48px; height:4px; background:#009edf; margin-bottom:20px}
+    .creative .cr-h1{
+      font-size:52px; line-height:1.08; font-weight:700; letter-spacing:-.02em;
+      text-shadow:0 2px 20px rgba(0,0,0,.35);
+    }
+    .creative .cr-h1 .l{display:block; white-space:nowrap}
+    .creative .cr-sub{
+      margin-top:16px; font-size:24px; font-weight:500; opacity:.92; line-height:1.35; max-width:900px;
+    }
+    .creative .cr-cta{
+      margin-top:24px; display:inline-flex; align-items:center; gap:10px;
+      font-size:20px; font-weight:700;
+    }
+    .creative .cr-dot{width:9px; height:9px; border-radius:50%; background:#009edf; flex:0 0 auto}
+
+    /* —— Board —— */
+    .board-head{
+      display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:.5rem;
+      margin:0 0 .85rem;
+    }
+    .board-head h2{margin:0; font-size:1.05rem; font-weight:750}
+    .board-head p{margin:0; font-size:.85rem; color:var(--muted)}
+    .stack{display:flex; flex-direction:column; gap:1.75rem; max-width:680px}
+
     .fb{
       background:var(--card); border-radius:12px; overflow:hidden;
-      border:1px solid var(--line);
-      box-shadow:0 8px 28px rgba(11,28,40,.07);
+      border:1px solid var(--line); box-shadow:0 8px 28px rgba(11,28,40,.07);
     }
     .fb-head{display:flex; align-items:center; gap:12px; padding:12px 14px 8px}
     .av{width:42px; height:42px; border-radius:50%; overflow:hidden; border:1px solid #ddd; flex:0 0 auto; background:#eee}
     .av img{width:100%; height:100%; object-fit:cover; display:block}
     .fb-name{font-size:15px; font-weight:700; color:#050505}
-    .fb-sub{font-size:12px; color:#65676b; margin-top:1px}
+    .fb-sub{font-size:12px; color:#4b5560; margin-top:1px}
     .fb-more{margin-left:auto; color:#65676b; font-size:20px; font-weight:700; padding:0 4px}
     .fb-caption{
-      padding:2px 14px 12px; font-size:15px; line-height:1.4; white-space:pre-wrap;
-      color:#1c1e21;
+      padding:2px 14px 12px; font-size:15px; line-height:1.4; white-space:pre-wrap; color:#1c1e21;
     }
-    .fb-caption[contenteditable="true"], .edit-box textarea{
-      width:100%; min-height:140px; resize:vertical; font:inherit; font-size:15px; line-height:1.4;
-      border:2px solid var(--blue); border-radius:10px; padding:10px 12px; outline:none;
-      white-space:pre-wrap;
-    }
+    .fb-caption.hide{display:none}
     .edit-box{padding:0 14px 12px; display:none}
     .edit-box.open{display:block}
-    .fb-caption.hide{display:none}
-    .fb-img{width:100%; display:block; background:#111; height:auto; vertical-align:top}
+    .edit-box textarea{
+      width:100%; min-height:140px; resize:vertical; font:inherit; font-size:15px; line-height:1.4;
+      border:2px solid var(--blue); border-radius:10px; padding:10px 12px; outline:none; white-space:pre-wrap;
+    }
+    .fb-media{background:#0a0f14; position:relative; overflow:hidden}
+    .fb-media .stage{width:100%; position:relative; padding-top:125%}
+    .fb-media .stage > .creative{
+      position:absolute; inset:0; width:1080px; height:1350px; transform-origin:top left;
+    }
+    .fb-media img.baked{
+      width:100%; display:block; vertical-align:top; background:#111;
+    }
     .fb-stats{
       display:flex; justify-content:space-between; align-items:center;
       padding:10px 14px; font-size:13px; color:#65676b;
       border-bottom:1px solid #e4e6eb; background:#fafafa;
     }
     .fb-actions-row{display:grid; grid-template-columns:1fr 1fr 1fr; padding:4px 6px 6px}
-    .fb-act{
-      text-align:center; padding:10px 6px; color:#65676b; font-size:14px; font-weight:600;
-    }
+    .fb-act{text-align:center; padding:10px 6px; color:#65676b; font-size:14px; font-weight:600}
 
     .controls{padding:12px 14px 14px; border-top:1px solid var(--line); background:#fff}
     .meta{display:flex; justify-content:space-between; align-items:center; gap:.75rem; margin-bottom:.75rem; flex-wrap:wrap}
@@ -72,7 +245,6 @@
     .badge.awaiting{color:#6b4a00; background:#fff7e6; border-color:#e0c070}
     .badge.approved{color:#0f5c38; background:#e7f6ee; border-color:#b7e0c7}
     .badge.editing{color:#0b5cab; background:#e8f2fc; border-color:#b7d4f0}
-    .badge.changed{color:#5a3d00; background:#fff4e5; border-color:#efd0a0}
 
     .btns{display:flex; flex-wrap:wrap; gap:.5rem}
     .btns button{
@@ -80,43 +252,119 @@
       padding:.8rem 1.05rem; border-radius:10px; color:#fff;
       box-shadow:0 3px 10px rgba(11,28,40,.14);
     }
-    .btns button:disabled{opacity:.45; cursor:not-allowed; transform:none}
+    .btns button:disabled{opacity:.45; cursor:not-allowed}
     .btn-approve{background:#1f7a4d}
     .btn-edit{background:#0b5cab}
-    .btn-change{background:#c45c12}
+    .btn-change{background:var(--warn)}
     .btn-save{background:var(--blue-dark)}
     .btn-cancel{background:#5c6670}
+    .btn-studio{background:#3a4652}
     .hint{margin:.55rem 0 0; font-size:.85rem; color:var(--muted); min-height:1.15em}
 
-    .tick{
-      display:inline-flex; align-items:center; gap:6px; font-weight:750; color:#0f5c38;
-    }
+    .tick{display:inline-flex; align-items:center; gap:6px; font-weight:750; color:#0f5c38}
     .tick svg{width:18px; height:18px}
 
     .summary{
       position:sticky; bottom:0; background:rgba(11,28,40,.97); color:#fff;
       padding:1rem 1.15rem; display:flex; flex-wrap:wrap; gap:.75rem;
       align-items:center; justify-content:space-between;
-      box-shadow:0 -8px 28px rgba(0,0,0,.18);
+      box-shadow:0 -8px 28px rgba(0,0,0,.18); z-index:20;
     }
     .summary p{margin:0; font-size:.9rem}
     .summary button{
-      appearance:none; border:0; background:var(--blue); color:#fff; font:inherit; font-weight:750;
+      appearance:none; border:0; background:var(--blue-dark); color:#fff; font:inherit; font-weight:750;
       padding:.7rem 1rem; border-radius:10px; cursor:pointer;
     }
 
-    .busy .btn-change{opacity:.6}
+    .sr-only{
+      position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+      clip:rect(0,0,0,0); white-space:nowrap; border:0;
+    }
   </style>
 </head>
 <body>
   <header>
-    <p class="eyebrow">On A Roll Garage Doors · Facebook &amp; Instagram</p>
-    <h1>Review your posts</h1>
-    <!-- board-v12 -->
-    <p>Approve as-is, edit the caption, or ask for a new suggestion. Nothing goes live until Pete posts the approved ones. <span style="display:inline-block;margin-left:.35rem;padding:.15rem .45rem;border-radius:999px;background:#009edf;color:#fff;font-size:.7rem;font-weight:750;letter-spacing:.04em;vertical-align:middle">v12</span></p>
+    <div class="row">
+      <div>
+        <h1>Post studio <span class="pill" id="verPill">v20</span></h1>
+        <p>Make Facebook &amp; Instagram posts, then drop them onto the week for Jon to approve. Nothing goes live until Pete posts.</p>
+      </div>
+    </div>
   </header>
 
   <div class="wrap">
+    <section class="studio" id="studio" aria-label="Post creator">
+      <div class="studio-head">
+        <div>
+          <h2>Create a post</h2>
+          <p class="sub">Live preview · FB 4:5 + IG 1:1 · downloads ready in one click</p>
+        </div>
+        <div class="packs" id="packRow" aria-label="Suggestion packs"></div>
+      </div>
+      <div class="studio-grid">
+        <div class="studio-form">
+          <div class="field">
+            <label>Photo</label>
+            <div class="photos" id="photoRow"></div>
+            <p class="hint">Tap a stock shot or upload Jon’s install photo.</p>
+          </div>
+          <div class="pair">
+            <div class="field">
+              <label for="line1">Headline line 1</label>
+              <input id="line1" type="text" maxlength="42" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="line2">Headline line 2</label>
+              <input id="line2" type="text" maxlength="42" autocomplete="off" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="sub">Subline</label>
+            <input id="sub" type="text" maxlength="110" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="cta">CTA on image</label>
+            <input id="cta" type="text" maxlength="60" value="Free survey · 01202 553603" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="caption">Caption (FB &amp; IG)</label>
+            <textarea id="caption" maxlength="2200"></textarea>
+            <p class="hint"><button type="button" class="pack" id="btnCaption" style="margin:0">Rebuild caption from headline</button></p>
+          </div>
+          <div class="field">
+            <label for="applySlot">Put on</label>
+            <select id="applySlot">
+              <option value="001">Monday · OAR-SM-001</option>
+              <option value="002">Wednesday · OAR-SM-002</option>
+              <option value="003">Friday · OAR-SM-003</option>
+            </select>
+          </div>
+          <div class="studio-actions">
+            <button type="button" class="btn-primary" id="btnApply">Apply to week</button>
+            <button type="button" class="btn-dl" id="btnDownload">Download FB + IG</button>
+            <button type="button" class="btn-ghost" id="btnCopy">Copy caption</button>
+          </div>
+          <p class="status-line" id="studioStatus" role="status"></p>
+        </div>
+        <div class="studio-preview">
+          <div class="preview-row">
+            <div class="preview-col">
+              <div class="tag">Facebook · 1080×1350</div>
+              <div class="preview-frame fb"><div class="stage" id="prevFb"></div></div>
+            </div>
+            <div class="preview-col">
+              <div class="tag">Instagram · 1080×1080</div>
+              <div class="preview-frame ig"><div class="stage" id="prevIg"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="board-head">
+      <h2>This week for Jon</h2>
+      <p>Approve · Edit caption · Change suggestion · or Open in studio</p>
+    </div>
     <div class="stack" id="stack"></div>
   </div>
 
@@ -126,266 +374,118 @@
   </div>
 
   <script>
-  const KEY = "oar-jon-board-v12";
+  const KEY = "oar-jon-board-v20";
   const PAGE = "On A Roll Garage Doors";
+  const LOGO = "logo.jpg";
+  const PRICE = "From £1,250";
+  const PHONE = "01202 553603";
+  const WHATSAPP = "07534 066813";
+  const DEFAULT_CTA = "Free survey · 01202 553603";
+
+  const PHOTOS = [
+    { id: "bg-001", src: "bg-001.jpg", label: "Roller install" },
+    { id: "bg-002", src: "bg-002.jpg", label: "Security" },
+    { id: "bg-003", src: "bg-003.jpg", label: "Local fit" }
+  ];
 
   const SUGGESTIONS = {
     "001": [
-      {
-        headline: ["Stop living", "with that door."],
-        sub: "Made-to-measure aluminium rollers. Fitted in about half a day.",
-        caption: "Made-to-measure aluminium rollers fitted across Poole, Bournemouth, Christchurch and Dorset. Tidy half-day install. From £1,250.\n\nFree survey → 01202 553603 · WhatsApp 07534 066813\nonarollgaragedoors.co.uk\n\nOn A Roll Garage Doors — family-run in Poole since 2014.\n\n#OnARollGarageDoors #GarageDoors #RollerGarageDoor #Poole #Bournemouth #Christchurch #Dorset #FreeSurvey #FamilyRun"
-      },
-      {
-        headline: ["Your old door", "is costing you."],
-        sub: "Quiet, insulated, remote-controlled. Local fit in about half a day.",
-        caption: "Your old door is costing you. From £1,250.\n\nQuiet, insulated aluminium rollers with remote. Fitted locally across Poole, Bournemouth, Christchurch and Dorset.\n\nFree survey → 01202 553603 · WhatsApp 07534 066813\n\n#GarageDoors #Poole #Bournemouth #Dorset #OnARollGarageDoors #FreeSurvey"
-      },
-      {
-        headline: ["Half a day.", "New door."],
-        sub: "Made to measure. Old door recycled. Family-run in Poole.",
-        caption: "Half a day. New door. From £1,250.\n\nMade-to-measure aluminium rollers. Old door removed and recycled. Family-run in Poole since 2014.\n\nBook a free survey → 01202 553603\n\n#RollerGarageDoor #Poole #Dorset #FamilyRun #OnARollGarageDoors"
-      },
-      {
-        headline: ["Match the house.", "Not near enough."],
-        sub: "Colour-matched aluminium rollers, fitted tidy, local team.",
-        caption: "Match the house. Not “near enough”. From £1,250.\n\nColour-matched aluminium rollers across Poole, Bournemouth, Christchurch and Dorset.\n\nFree no-obligation survey → 01202 553603 · WhatsApp 07534 066813\n\n#GarageDoorInstallation #Poole #Bournemouth #Christchurch #OnARollGarageDoors"
-      }
+      { line1: "Stop living", line2: "with that door.", sub: "Made-to-measure aluminium rollers. Fitted in about half a day.", photo: "bg-001" },
+      { line1: "Your old door", line2: "is costing you.", sub: "Quiet, insulated, remote-controlled. Local fit in about half a day.", photo: "bg-001" },
+      { line1: "Half a day.", line2: "New door.", sub: "Made to measure. Old door recycled. Family-run in Poole.", photo: "bg-001" },
+      { line1: "Match the house.", line2: "Not near enough.", sub: "Colour-matched aluminium rollers, fitted tidy, local team.", photo: "bg-001" }
     ],
     "002": [
-      {
-        headline: ["Your garage", "is an open invite."],
-        sub: "Electric rollers lock into the guides — no handle for thieves to force.",
-        caption: "Electric rollers lock into the guides — no handle for thieves to force. From £1,250.\n\nSend a photo for straight advice → 01202 553603 · WhatsApp 07534 066813\n\nOn A Roll Garage Doors · Poole\n\n#GarageDoorSecurity #HomeSecurity #Poole #Bournemouth #Dorset #OnARollGarageDoors"
-      },
-      {
-        headline: ["Thieves check", "the garage first."],
-        sub: "Upgrade to a remote roller that locks into the side guides.",
-        caption: "Thieves check the garage first. From £1,250.\n\nUpgrade to a remote roller that locks into the side guides. No outside handle to force.\n\nStraight advice on repair vs replace → WhatsApp 07534 066813\n\n#HomeSecurity #GarageDoors #Poole #Dorset #OnARollGarageDoors"
-      },
-      {
-        headline: ["Secure it.", "Remote it."],
-        sub: "Modern electric rollers. Local install. No hard sell.",
-        caption: "Secure it. Remote it. From £1,250.\n\nModern electric rollers fitted across Poole, Bournemouth, Christchurch and Dorset.\n\nMessage a photo of your door → 01202 553603\n\n#ElectricGarageDoor #Security #Poole #OnARollGarageDoors"
-      },
-      {
-        headline: ["No handle.", "No easy way in."],
-        sub: "That’s the point of a modern electric roller.",
-        caption: "No handle. No easy way in. From £1,250.\n\nThat’s the point of a modern electric roller — locks into the guides, opens with a remote.\n\nFree advice → WhatsApp 07534 066813\n\n#GarageDoorSecurity #Dorset #Poole #OnARollGarageDoors"
-      }
+      { line1: "Your garage", line2: "is an open invite.", sub: "Electric rollers lock into the guides — no handle for thieves to force.", photo: "bg-002" },
+      { line1: "Thieves check", line2: "the garage first.", sub: "Upgrade to a remote roller that locks into the side guides.", photo: "bg-002" },
+      { line1: "Secure it.", line2: "Remote it.", sub: "Modern electric rollers. Local install. No hard sell.", photo: "bg-002" },
+      { line1: "No handle.", line2: "No easy way in.", sub: "That’s the point of a modern electric roller.", photo: "bg-002" }
     ],
     "003": [
-      {
-        headline: ["Don’t overpay", "for a garage door."],
-        sub: "Local Poole fitters. Straight quote. Free survey.",
-        caption: "Local Poole fitters. Straight quote. Free survey. No hard sell. From £1,250.\n\nCall 01202 553603 · WhatsApp 07534 066813\nFamily-run in Poole since 2014.\n\n#FreeSurvey #GarageDoorFitters #Poole #Bournemouth #Dorset #OnARollGarageDoors"
-      },
-      {
-        headline: ["Local fitters.", "Honest price."],
-        sub: "Poole, Bournemouth, Christchurch & Dorset. Free survey.",
-        caption: "Local fitters. Honest price. From £1,250.\n\nCovering Poole, Bournemouth, Christchurch and Dorset. Free no-obligation survey.\n\nCall 01202 553603 · WhatsApp 07534 066813\n\n#GarageDoorsPoole #Dorset #FamilyRun #OnARollGarageDoors"
-      },
-      {
-        headline: ["Ready for a", "new garage door?"],
-        sub: "Book a free survey this week. Typical fit about half a day.",
-        caption: "Ready for a new garage door? From £1,250.\n\nBook a free survey this week. Typical fit about half a day. Old door recycled.\n\n01202 553603 · WhatsApp 07534 066813\n\n#GarageDoors #Poole #Bournemouth #Christchurch #FreeSurvey"
-      },
-      {
-        headline: ["A better door.", "A fair price."],
-        sub: "Family-run in Poole since 2014. Free survey, no hard sell.",
-        caption: "A better door. A fair price. From £1,250.\n\nFamily-run in Poole since 2014. Free survey, no hard sell.\n\nCall 01202 553603\n\n#OnARollGarageDoors #Dorset #GarageDoorFitters #FamilyRun"
-      }
+      { line1: "Don’t overpay", line2: "for a garage door.", sub: "Local Poole fitters. Straight quote. Free survey.", photo: "bg-003" },
+      { line1: "Local fitters.", line2: "Honest price.", sub: "Poole, Bournemouth, Christchurch & Dorset. Free survey.", photo: "bg-003" },
+      { line1: "Ready for a", line2: "new garage door?", sub: "Book a free survey this week. Typical fit about half a day.", photo: "bg-003" },
+      { line1: "A better door.", line2: "A fair price.", sub: "Family-run in Poole since 2014. Free survey, no hard sell.", photo: "bg-003" }
     ]
   };
 
   const SLOTS = [
-    { id: "001", day: "Monday", bg: "bg-001.jpg", starter: "v-001-0.jpg", time: "Just now" },
-    { id: "002", day: "Wednesday", bg: "bg-002.jpg", starter: "v-002-0.jpg", time: "2h" },
-    { id: "003", day: "Friday", bg: "bg-003.jpg", starter: "v-003-0.jpg", time: "Yesterday at 09:12" }
+    { id: "001", day: "Monday", time: "Just now" },
+    { id: "002", day: "Wednesday", time: "2h" },
+    { id: "003", day: "Friday", time: "Yesterday at 09:12" }
   ];
 
-  const logoUrl = "logo.jpg";
-  const assetCache = {};
+  const HASHTAGS = {
+    "001": "#OnARollGarageDoors #GarageDoors #RollerGarageDoor #Poole #Bournemouth #Christchurch #Dorset #FreeSurvey #FamilyRun",
+    "002": "#GarageDoorSecurity #HomeSecurity #Poole #Bournemouth #Dorset #OnARollGarageDoors",
+    "003": "#FreeSurvey #GarageDoorFitters #Poole #Bournemouth #Dorset #OnARollGarageDoors #FamilyRun"
+  };
+
+  /* —— State —— */
+  const uploadCache = {}; // id -> dataURL
+  const bakeCache = new Map(); // key -> {fb, ig}
+  let studio = {
+    photo: "bg-001",
+    line1: SUGGESTIONS["001"][0].line1,
+    line2: SUGGESTIONS["001"][0].line2,
+    sub: SUGGESTIONS["001"][0].sub,
+    cta: DEFAULT_CTA,
+    caption: "",
+    applySlot: "001",
+    variant: 0
+  };
 
   function loadState() {
     try { return JSON.parse(localStorage.getItem(KEY) || "{}"); }
     catch { return {}; }
   }
   function saveState(state) {
-    localStorage.setItem(KEY, JSON.stringify(state));
+    try { localStorage.setItem(KEY, JSON.stringify(state)); }
+    catch (err) {
+      console.warn("localStorage full — keeping session only", err);
+      setStudioStatus("Browser storage is full. Downloads still work; refresh may lose edits.", "err");
+    }
     renderSummary(state);
   }
 
-  function defaultState() {
-    const state = {};
-    for (const slot of SLOTS) {
-      state[slot.id] = {
-        variant: 0,
-        caption: SUGGESTIONS[slot.id][0].caption,
-        status: "awaiting", // awaiting | approved | editing
-        imageDataUrl: null
-      };
-    }
-    return state;
+  function defaultPost(slotId) {
+    const s = SUGGESTIONS[slotId][0];
+    return {
+      photo: s.photo,
+      line1: s.line1,
+      line2: s.line2,
+      sub: s.sub,
+      cta: DEFAULT_CTA,
+      caption: buildCaption(s, slotId),
+      status: "awaiting",
+      variant: 0,
+      customPhoto: null
+    };
   }
 
   function ensureState() {
     let state = loadState();
-    if (!state["001"] || !state["002"] || !state["003"]) {
-      state = defaultState();
-      saveState(state);
+    for (const slot of SLOTS) {
+      if (!state[slot.id] || !state[slot.id].line1) state[slot.id] = defaultPost(slot.id);
+      if (!state[slot.id].status) state[slot.id].status = "awaiting";
+      if (typeof state[slot.id].variant !== "number") state[slot.id].variant = 0;
+      if (!state[slot.id].caption) state[slot.id].caption = buildCaption(state[slot.id], slot.id);
+      if (!state[slot.id].cta) state[slot.id].cta = DEFAULT_CTA;
     }
     return state;
   }
 
-  function loadImage(src) {
-    if (assetCache[src]) return assetCache[src];
-    assetCache[src] = new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = src;
-    });
-    return assetCache[src];
+  function buildCaption(post, slotId) {
+    const hook = `${post.line1} ${post.line2}`.replace(/\s+/g, " ").trim();
+    const body = post.sub || hook;
+    return `${body} From £1,250.\n\nFree survey → ${PHONE} · WhatsApp ${WHATSAPP}\nonarollgaragedoors.co.uk\n\nOn A Roll Garage Doors — family-run in Poole since 2014.\n\n${HASHTAGS[slotId] || HASHTAGS["001"]}`;
   }
 
-  async function renderCreative(slotId, variantIndex) {
-    const slot = SLOTS.find(s => s.id === slotId);
-    const variant = SUGGESTIONS[slotId][variantIndex % SUGGESTIONS[slotId].length];
-    const W = 1080, H = 1350;
-    const canvas = document.createElement("canvas");
-    canvas.width = W; canvas.height = H;
-    const ctx = canvas.getContext("2d");
-
-    const [bg, logo] = await Promise.all([loadImage(slot.bg), loadImage(logoUrl)]);
-
-    const scale = Math.max(W / bg.width, H / bg.height);
-    const bw = bg.width * scale, bh = bg.height * scale;
-    ctx.drawImage(bg, (W - bw) / 2, (H - bh) / 2, bw, bh);
-
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, "rgba(10,15,20,0.28)");
-    g.addColorStop(0.3, "rgba(10,15,20,0)");
-    g.addColorStop(0.52, "rgba(10,15,20,0.12)");
-    g.addColorStop(0.72, "rgba(10,15,20,0.72)");
-    g.addColorStop(1, "rgba(10,15,20,0.95)");
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
-
-    // logo
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(96, 96, 52, 0, Math.PI * 2);
-    ctx.fillStyle = "#fff";
-    ctx.shadowColor = "rgba(0,0,0,0.28)";
-    ctx.shadowBlur = 18;
-    ctx.fill();
-    ctx.restore();
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(96, 96, 47, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(logo, 49, 49, 94, 94);
-    ctx.restore();
-
-    // price pill — measure properly
-    ctx.font = "700 20px Helvetica, Arial, sans-serif";
-    const priceLeft = "FROM ";
-    const priceRight = "£1,250";
-    const priceW = ctx.measureText(priceLeft).width + ctx.measureText(priceRight).width + 48;
-    const priceX = W - 44 - priceW, priceY = 58;
-    roundRect(ctx, priceX, priceY, priceW, 52, 26);
-    ctx.fillStyle = "#fff";
-    ctx.fill();
-    ctx.font = "700 18px Helvetica, Arial, sans-serif";
-    ctx.fillStyle = "#0a0f14";
-    ctx.fillText(priceLeft, priceX + 24, priceY + 33);
-    ctx.fillStyle = "#009edf";
-    ctx.fillText(priceRight, priceX + 24 + ctx.measureText(priceLeft).width, priceY + 33);
-
-    // headline — fit to width, keep inside safe box
-    const left = 52;
-    const maxTextW = W - 124;
-    const bottomSafe = 72;
-    let lines = variant.headline.slice();
-    let fontSize = 52;
-    // Shrink type until each authored line fits — never break a line mid-phrase
-    while (fontSize > 40) {
-      ctx.font = `700 ${fontSize}px Helvetica, Arial, sans-serif`;
-      const tooWide = lines.some(line => ctx.measureText(line).width > maxTextW);
-      if (!tooWide) break;
-      fontSize -= 2;
-    }
-    ctx.font = `700 ${fontSize}px Helvetica, Arial, sans-serif`;
-
-    const lineH = Math.round(fontSize * 1.05);
-    const subH = 34;
-    const subLines = Math.ceil(ctx.measureText(variant.sub).width / maxTextW) || 1;
-    // rough sub line count
-    ctx.font = "500 26px Helvetica, Arial, sans-serif";
-    let subCount = 1, subCur = "";
-    for (const word of variant.sub.split(" ")) {
-      const trial = subCur ? subCur + " " + word : word;
-      if (ctx.measureText(trial).width > maxTextW && subCur) { subCount++; subCur = word; }
-      else subCur = trial;
-    }
-    const blockH = 4 + 28 + lines.length * lineH + 18 + subCount * subH + 40;
-    let y = H - bottomSafe - blockH;
-
-    ctx.fillStyle = "#009edf";
-    ctx.fillRect(left, y, 52, 4);
-    y += 28 + fontSize;
-
-    ctx.fillStyle = "#fff";
-    ctx.font = `700 ${fontSize}px Helvetica, Arial, sans-serif`;
-    ctx.shadowColor = "rgba(0,0,0,0.35)";
-    ctx.shadowBlur = 14;
-    for (const line of lines) {
-      ctx.fillText(line, left, y);
-      y += lineH;
-    }
-    ctx.shadowBlur = 0;
-
-    y += 14;
-    ctx.font = "500 26px Helvetica, Arial, sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.92)";
-    wrapText(ctx, variant.sub, left, y, maxTextW, subH);
-
-    y = H - 64;
-    ctx.beginPath();
-    ctx.arc(left + 6, y - 6, 5, 0, Math.PI * 2);
-    ctx.fillStyle = "#009edf";
-    ctx.fill();
-    ctx.fillStyle = "#fff";
-    ctx.font = "700 22px Helvetica, Arial, sans-serif";
-    ctx.fillText("Free survey · 01202 553603", left + 22, y);
-
-    return canvas.toDataURL("image/jpeg", 0.92);
-  }
-
-  function roundRect(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y, x + w, y + h, r);
-    ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r);
-    ctx.arcTo(x, y, x + w, y, r);
-    ctx.closePath();
-  }
-
-  function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-    const words = text.split(" ");
-    let line = "";
-    for (const word of words) {
-      const test = line ? line + " " + word : word;
-      if (ctx.measureText(test).width > maxWidth && line) {
-        ctx.fillText(line, x, y);
-        line = word;
-        y += lineHeight;
-      } else line = test;
-    }
-    if (line) ctx.fillText(line, x, y);
+  function photoSrc(post) {
+    if (post.customPhoto && uploadCache[post.customPhoto]) return uploadCache[post.customPhoto];
+    if (post.photo && String(post.photo).startsWith("data:")) return post.photo;
+    const pack = PHOTOS.find(p => p.id === post.photo);
+    return pack ? pack.src : PHOTOS[0].src;
   }
 
   function escapeHTML(str) {
@@ -396,6 +496,392 @@
       .replace(/"/g, "&quot;");
   }
 
+  function creativeHTML(post, format) {
+    const src = photoSrc(post);
+    const ig = format === "ig";
+    return `<div class="creative${ig ? " ig" : ""}" data-format="${format}">
+      <div class="cr-photo" style="background-image:url('${src.replace(/'/g, "%27")}')"></div>
+      <div class="cr-grad"></div>
+      <div class="cr-logo"><img src="${LOGO}" alt=""></div>
+      <div class="cr-price"><span class="from">From</span><span class="amount">£1,250</span></div>
+      <div class="cr-copy">
+        <div class="cr-rule"></div>
+        <div class="cr-h1"><span class="l">${escapeHTML(post.line1)}</span><span class="l">${escapeHTML(post.line2)}</span></div>
+        <div class="cr-sub">${escapeHTML(post.sub)}</div>
+        <div class="cr-cta"><span class="cr-dot"></span> ${escapeHTML(post.cta || DEFAULT_CTA)}</div>
+      </div>
+    </div>`;
+  }
+
+  /* —— Robust canvas baker —— */
+  const imgCache = {};
+  function loadImage(src) {
+    if (!src) return Promise.reject(new Error("No image source"));
+    if (imgCache[src]) return imgCache[src];
+    imgCache[src] = new Promise((resolve, reject) => {
+      const img = new Image();
+      if (!src.startsWith("data:") && !src.startsWith("blob:")) img.crossOrigin = "anonymous";
+      const t = setTimeout(() => reject(new Error("Image timeout: " + src.slice(0, 48))), 12000);
+      img.onload = () => { clearTimeout(t); resolve(img); };
+      img.onerror = () => { clearTimeout(t); reject(new Error("Image failed: " + src.slice(0, 48))); };
+      img.src = src;
+    });
+    return imgCache[src];
+  }
+
+  function fitHeadline(ctx, lines, maxW, startSize) {
+    let size = startSize;
+    while (size >= 28) {
+      ctx.font = `700 ${size}px Helvetica, Arial, sans-serif`;
+      const ok = lines.every(l => ctx.measureText(l).width <= maxW);
+      if (ok) return size;
+      size -= 2;
+    }
+    return 28;
+  }
+
+  function wrapWords(ctx, text, maxW) {
+    const words = String(text || "").split(/\s+/).filter(Boolean);
+    const lines = [];
+    let line = "";
+    for (const w of words) {
+      const test = line ? line + " " + w : w;
+      if (ctx.measureText(test).width > maxW && line) {
+        lines.push(line);
+        line = w;
+      } else line = test;
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  async function bake(post, format) {
+    const W = 1080;
+    const H = format === "ig" ? 1080 : 1350;
+    const cacheKey = JSON.stringify({
+      f: format, p: post.photo, c: post.customPhoto || "",
+      l1: post.line1, l2: post.line2, s: post.sub, cta: post.cta
+    });
+    if (bakeCache.has(cacheKey)) return bakeCache.get(cacheKey);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext("2d", { alpha: false });
+
+    const bgSrc = photoSrc(post);
+    const [bg, logo] = await Promise.all([loadImage(bgSrc), loadImage(LOGO)]);
+
+    // cover draw
+    const scale = Math.max(W / bg.width, H / bg.height);
+    const bw = bg.width * scale, bh = bg.height * scale;
+    ctx.fillStyle = "#0a0f14";
+    ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(bg, (W - bw) / 2, (H - bh) / 2, bw, bh);
+
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    if (format === "ig") {
+      g.addColorStop(0, "rgba(10,15,20,0.30)");
+      g.addColorStop(0.28, "rgba(10,15,20,0)");
+      g.addColorStop(0.55, "rgba(10,15,20,0.18)");
+      g.addColorStop(0.78, "rgba(10,15,20,0.82)");
+      g.addColorStop(1, "rgba(10,15,20,0.95)");
+    } else {
+      g.addColorStop(0, "rgba(10,15,20,0.28)");
+      g.addColorStop(0.3, "rgba(10,15,20,0)");
+      g.addColorStop(0.52, "rgba(10,15,20,0.12)");
+      g.addColorStop(0.76, "rgba(10,15,20,0.78)");
+      g.addColorStop(1, "rgba(10,15,20,0.94)");
+    }
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    // logo circle
+    const lx = 44, ly = 44, lr = 52;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(lx + lr, ly + lr, lr, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fillStyle = "#fff";
+    ctx.shadowColor = "rgba(0,0,0,0.28)";
+    ctx.shadowBlur = 28; ctx.shadowOffsetY = 8;
+    ctx.fill();
+    ctx.clip();
+    ctx.shadowColor = "transparent";
+    ctx.drawImage(logo, lx + 5, ly + 5, 94, 94);
+    ctx.restore();
+
+    // hard-reset shadow — logo fill must not ghost into the price chip
+    ctx.shadowColor = "rgba(0,0,0,0)";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+
+    // price — two chips (FROM + £1,250) so bake never double-paints text
+    ctx.font = "700 17px Helvetica, Arial, sans-serif";
+    const tFrom = "FROM";
+    const tPrice = "£1,250";
+    const padX = 18, gap = 10, ph = 44, py = 58;
+    const fromW = ctx.measureText(tFrom).width;
+    const priceW = ctx.measureText(tPrice).width;
+    const fromPill = fromW + padX * 2;
+    const pricePill = priceW + padX * 2;
+    let px = W - 44 - (fromPill + gap + pricePill);
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#fff";
+    roundRect(ctx, px, py, fromPill, ph, 999);
+    ctx.fill();
+    ctx.fillStyle = "#0a0f14";
+    ctx.fillText(tFrom, px + padX, py + ph / 2);
+    px += fromPill + gap;
+    ctx.fillStyle = "#009edf";
+    roundRect(ctx, px, py, pricePill, ph, 999);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.fillText(tPrice, px + padX, py + ph / 2);
+
+    // copy block
+    const left = 52;
+    const maxTextW = W - 104;
+    const bottom = format === "ig" ? 52 : 64;
+    let y = H - bottom;
+
+    // measure block bottom-up then draw top-down
+    const lines = [post.line1 || "", post.line2 || ""];
+    const fontSize = fitHeadline(ctx, lines, maxTextW, 52);
+    ctx.font = `500 24px Helvetica, Arial, sans-serif`;
+    const subLines = wrapWords(ctx, post.sub || "", maxTextW);
+    const cta = post.cta || DEFAULT_CTA;
+
+    const h1Block = fontSize * 1.08 * lines.length;
+    const subBlock = subLines.length * 32;
+    const blockH = 4 + 20 + h1Block + 16 + subBlock + 24 + 24;
+    let cy = H - bottom - blockH;
+
+    // rule
+    ctx.fillStyle = "#009edf";
+    ctx.fillRect(left, cy, 48, 4);
+    cy += 24;
+
+    // headline
+    ctx.fillStyle = "#fff";
+    ctx.textBaseline = "top";
+    ctx.font = `700 ${fontSize}px Helvetica, Arial, sans-serif`;
+    ctx.shadowColor = "rgba(0,0,0,0.35)";
+    ctx.shadowBlur = 20; ctx.shadowOffsetY = 2;
+    for (const line of lines) {
+      ctx.fillText(line, left, cy);
+      cy += fontSize * 1.08;
+    }
+    ctx.shadowColor = "transparent";
+    cy += 16;
+
+    // sub
+    ctx.font = `500 24px Helvetica, Arial, sans-serif`;
+    ctx.globalAlpha = 0.92;
+    for (const line of subLines) {
+      ctx.fillText(line, left, cy);
+      cy += 32;
+    }
+    ctx.globalAlpha = 1;
+    cy += 24;
+
+    // cta
+    ctx.beginPath();
+    ctx.arc(left + 4.5, cy + 10, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = "#009edf";
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = "700 20px Helvetica, Arial, sans-serif";
+    ctx.fillText(cta, left + 18, cy);
+
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+    bakeCache.set(cacheKey, dataUrl);
+    return dataUrl;
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    const rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+  }
+
+  async function bakeBoth(post) {
+    const [fb, ig] = await Promise.all([bake(post, "fb"), bake(post, "ig")]);
+    return { fb, ig };
+  }
+
+  function downloadDataUrl(dataUrl, filename) {
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  /* —— Studio UI —— */
+  function setStudioStatus(msg, kind) {
+    const el = document.getElementById("studioStatus");
+    el.textContent = msg || "";
+    el.className = "status-line" + (kind ? " " + kind : "");
+  }
+
+  function readStudioForm() {
+    studio.line1 = document.getElementById("line1").value.trim();
+    studio.line2 = document.getElementById("line2").value.trim();
+    studio.sub = document.getElementById("sub").value.trim();
+    studio.cta = document.getElementById("cta").value.trim() || DEFAULT_CTA;
+    studio.caption = document.getElementById("caption").value;
+    studio.applySlot = document.getElementById("applySlot").value;
+  }
+
+  function writeStudioForm() {
+    document.getElementById("line1").value = studio.line1;
+    document.getElementById("line2").value = studio.line2;
+    document.getElementById("sub").value = studio.sub;
+    document.getElementById("cta").value = studio.cta;
+    document.getElementById("caption").value = studio.caption;
+    document.getElementById("applySlot").value = studio.applySlot;
+    document.querySelectorAll(".photo-pick[data-photo]").forEach(btn => {
+      btn.setAttribute("aria-pressed", btn.dataset.photo === studio.photo ? "true" : "false");
+    });
+  }
+
+  function studioPost() {
+    readStudioForm();
+    return {
+      photo: studio.photo,
+      customPhoto: studio.customPhoto || null,
+      line1: studio.line1,
+      line2: studio.line2,
+      sub: studio.sub,
+      cta: studio.cta,
+      caption: studio.caption,
+      status: "awaiting",
+      variant: studio.variant || 0
+    };
+  }
+
+  function renderStudioPreview() {
+    const post = studioPost();
+    const fb = document.getElementById("prevFb");
+    const ig = document.getElementById("prevIg");
+    fb.innerHTML = creativeHTML(post, "fb");
+    ig.innerHTML = creativeHTML(post, "ig");
+    // scale IG creative height already set via .ig class; transform set in CSS for fixed preview widths
+    const fbC = fb.querySelector(".creative");
+    const igC = ig.querySelector(".creative");
+    if (fbC) fbC.style.transform = `scale(${220 / 1080})`;
+    if (igC) igC.style.transform = `scale(${200 / 1080})`;
+  }
+
+  function fillFromSuggestion(slotId, index) {
+    const list = SUGGESTIONS[slotId];
+    const s = list[((index % list.length) + list.length) % list.length];
+    studio.photo = s.photo;
+    studio.customPhoto = null;
+    studio.line1 = s.line1;
+    studio.line2 = s.line2;
+    studio.sub = s.sub;
+    studio.cta = DEFAULT_CTA;
+    studio.applySlot = slotId;
+    studio.variant = index;
+    studio.caption = buildCaption(s, slotId);
+    writeStudioForm();
+    renderStudioPreview();
+    setStudioStatus(`Loaded ${SLOTS.find(x => x.id === slotId).day} suggestion ${index + 1}/${list.length}.`);
+  }
+
+  function renderPhotoRow() {
+    const row = document.getElementById("photoRow");
+    row.innerHTML = PHOTOS.map(p => `
+      <button type="button" class="photo-pick" data-photo="${p.id}" aria-pressed="${studio.photo === p.id}" title="${p.label}">
+        <img src="${p.src}" alt="${p.label}">
+      </button>
+    `).join("") + `
+      <label class="photo-pick upload" title="Upload photo">
+        Upload
+        <input type="file" id="photoUpload" accept="image/*" />
+      </label>
+    `;
+    row.querySelectorAll(".photo-pick[data-photo]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        studio.photo = btn.dataset.photo;
+        studio.customPhoto = null;
+        writeStudioForm();
+        renderStudioPreview();
+      });
+    });
+    document.getElementById("photoUpload").addEventListener("change", async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      try {
+        const dataUrl = await compressUpload(file);
+        const id = "up-" + Date.now();
+        uploadCache[id] = dataUrl;
+        studio.customPhoto = id;
+        studio.photo = id;
+        // show as selected — add temp thumb
+        writeStudioForm();
+        renderStudioPreview();
+        setStudioStatus("Custom photo loaded.", "ok");
+      } catch (err) {
+        console.error(err);
+        setStudioStatus("Couldn’t read that photo. Try a JPG or PNG.", "err");
+      }
+    });
+  }
+
+  function compressUpload(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("read failed"));
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const max = 1600;
+          let w = img.width, h = img.height;
+          if (w > max || h > max) {
+            const s = Math.min(max / w, max / h);
+            w = Math.round(w * s); h = Math.round(h * s);
+          }
+          const c = document.createElement("canvas");
+          c.width = w; c.height = h;
+          c.getContext("2d").drawImage(img, 0, 0, w, h);
+          resolve(c.toDataURL("image/jpeg", 0.9));
+        };
+        img.onerror = () => reject(new Error("decode failed"));
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function renderPacks() {
+    const row = document.getElementById("packRow");
+    row.innerHTML = SLOTS.map(s =>
+      `<button type="button" class="pack" data-pack="${s.id}">${s.day} pack</button>`
+    ).join("") + `<button type="button" class="pack" id="btnSurprise">Surprise me</button>`;
+    row.querySelectorAll("[data-pack]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.pack;
+        fillFromSuggestion(id, 0);
+      });
+    });
+    document.getElementById("btnSurprise").addEventListener("click", () => {
+      const id = studio.applySlot || "001";
+      const next = ((studio.variant || 0) + 1) % SUGGESTIONS[id].length;
+      fillFromSuggestion(id, next);
+    });
+  }
+
+  /* —— Board cards —— */
   function badgeHTML(status) {
     if (status === "approved") {
       return `<span class="badge approved"><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg> Approved</span></span>`;
@@ -404,12 +890,18 @@
     return `<span class="badge awaiting">Awaiting</span>`;
   }
 
+  function hintFor(status) {
+    if (status === "approved") return "Ticked for approval. Pete can post this version.";
+    if (status === "editing") return "Edit the caption, then Save — that will approve it. Or Cancel.";
+    return "Approve as-is, edit the caption, Change for a new suggestion, or Open in studio.";
+  }
+
   function cardHTML(slot, item) {
     const editing = item.status === "editing";
     return `
       <article class="fb" data-id="${slot.id}">
         <div class="fb-head">
-          <div class="av"><img src="${logoUrl}" alt=""></div>
+          <div class="av"><img src="${LOGO}" alt=""></div>
           <div>
             <div class="fb-name">${PAGE}</div>
             <div class="fb-sub">${slot.day} · ${slot.time} · Public</div>
@@ -420,8 +912,10 @@
         <div class="edit-box ${editing ? "open" : ""}">
           <textarea data-editor>${escapeHTML(item.caption)}</textarea>
         </div>
-        <img class="fb-img" data-image src="${item.imageDataUrl || ""}" alt="${slot.day} post preview">
-        <div class="fb-stats"><span>Like · Comment · Share preview</span><span>Facebook style</span></div>
+        <div class="fb-media">
+          <div class="stage" data-stage>${creativeHTML(item, "fb")}</div>
+        </div>
+        <div class="fb-stats"><span>Like · Comment · Share preview</span><span>Facebook · 4:5</span></div>
         <div class="fb-actions-row">
           <div class="fb-act">Like</div>
           <div class="fb-act">Comment</div>
@@ -440,6 +934,7 @@
               <button type="button" class="btn-approve" data-action="approve">Approve</button>
               <button type="button" class="btn-edit" data-action="edit">Edit</button>
               <button type="button" class="btn-change" data-action="change">Change</button>
+              <button type="button" class="btn-studio" data-action="open-studio">Open in studio</button>
             `}
           </div>
           <p class="hint" data-hint>${hintFor(item.status)}</p>
@@ -447,32 +942,19 @@
       </article>`;
   }
 
-  function hintFor(status) {
-    if (status === "approved") return "Ticked for approval. Pete can post this version.";
-    if (status === "editing") return "Edit the caption, then Save — that will approve it. Or Cancel.";
-    return "Approve as-is, edit the caption, or Change for a new suggestion.";
-  }
-
-  function variantImage(slotId, variantIndex) {
-    const n = SUGGESTIONS[slotId].length;
-    const i = ((variantIndex % n) + n) % n;
-    return `v-${slotId}-${i}.jpg?v=12`;
-  }
-
-  async function ensureImages(state) {
-    for (const slot of SLOTS) {
-      const item = state[slot.id];
-      item.variant = item.variant || 0;
-      item.imageDataUrl = variantImage(slot.id, item.variant);
-      if (!item.caption) item.caption = SUGGESTIONS[slot.id][item.variant].caption;
-    }
-    saveState(state);
+  function scaleCardCreatives() {
+    document.querySelectorAll(".fb-media .stage").forEach(stage => {
+      const w = stage.clientWidth || stage.parentElement.clientWidth;
+      const c = stage.querySelector(".creative");
+      if (c && w) c.style.transform = `scale(${w / 1080})`;
+    });
   }
 
   function renderAll(state) {
     const stack = document.getElementById("stack");
     stack.innerHTML = SLOTS.map(slot => cardHTML(slot, state[slot.id])).join("");
     bindCards(state);
+    scaleCardCreatives();
     renderSummary(state);
   }
 
@@ -504,14 +986,40 @@
             saveState(state); renderAll(state);
           }
           if (action === "change") {
-            const next = ((state[id].variant || 0) + 1) % SUGGESTIONS[id].length;
+            const list = SUGGESTIONS[id];
+            const next = ((state[id].variant || 0) + 1) % list.length;
+            const s = list[next];
             state[id].variant = next;
-            state[id].caption = SUGGESTIONS[id][next].caption;
+            state[id].photo = s.photo;
+            state[id].customPhoto = null;
+            state[id].line1 = s.line1;
+            state[id].line2 = s.line2;
+            state[id].sub = s.sub;
+            state[id].cta = DEFAULT_CTA;
+            state[id].caption = buildCaption(s, id);
             state[id].status = "awaiting";
-            state[id].imageDataUrl = variantImage(id, next);
             saveState(state); renderAll(state);
             const hint = document.querySelector(`.fb[data-id="${id}"] [data-hint]`);
             if (hint) hint.textContent = "New suggestion loaded — approve, edit, or Change again.";
+          }
+          if (action === "open-studio") {
+            const item = state[id];
+            studio.photo = item.photo;
+            studio.customPhoto = item.customPhoto || null;
+            if (item.customPhoto && item.photo && String(item.photo).startsWith("data:")) {
+              uploadCache[item.customPhoto] = item.photo;
+            }
+            studio.line1 = item.line1;
+            studio.line2 = item.line2;
+            studio.sub = item.sub;
+            studio.cta = item.cta || DEFAULT_CTA;
+            studio.caption = item.caption;
+            studio.applySlot = id;
+            studio.variant = item.variant || 0;
+            writeStudioForm();
+            renderStudioPreview();
+            document.getElementById("studio").scrollIntoView({ behavior: "smooth", block: "start" });
+            setStudioStatus(`Editing ${SLOTS.find(s => s.id === id).day} in the studio.`);
           }
         });
       });
@@ -529,31 +1037,145 @@
       approved === 0 ? parts.join("  ·  ") : `${approved}/3 approved  ·  ${parts.join("  ·  ")}`;
   }
 
+  /* —— Actions —— */
+  async function applyToWeek() {
+    const post = studioPost();
+    if (!post.line1 || !post.line2) {
+      setStudioStatus("Add both headline lines before applying.", "err");
+      return;
+    }
+    setStudioStatus("Baking Facebook & Instagram…");
+    const btn = document.getElementById("btnApply");
+    btn.disabled = true;
+    try {
+      await bakeBoth(post); // warm + validate bake works
+      const state = ensureState();
+      const id = post.applySlot || studio.applySlot;
+      // Persist custom photo data on the post if needed
+      const saved = { ...post };
+      if (saved.customPhoto && uploadCache[saved.customPhoto]) {
+        // keep reference; also stash compact flag
+        saved._hasUpload = true;
+      }
+      saved.status = "awaiting";
+      state[id] = saved;
+      // stash uploads into state lightly via photo data url key for refresh survival (compressed)
+      if (saved.customPhoto && uploadCache[saved.customPhoto]) {
+        try {
+          state._uploads = state._uploads || {};
+          state._uploads[saved.customPhoto] = uploadCache[saved.customPhoto];
+        } catch (_) {}
+      }
+      saveState(state);
+      renderAll(state);
+      const day = SLOTS.find(s => s.id === id).day;
+      setStudioStatus(`Applied to ${day}. Scroll down to approve.`, "ok");
+      document.querySelector(`.fb[data-id="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    } catch (err) {
+      console.error(err);
+      setStudioStatus("Bake failed — preview still works. Check the photo and try again.", "err");
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function downloadBoth() {
+    const post = studioPost();
+    if (!post.line1 || !post.line2) {
+      setStudioStatus("Add both headline lines before downloading.", "err");
+      return;
+    }
+    const btn = document.getElementById("btnDownload");
+    btn.disabled = true;
+    setStudioStatus("Baking JPGs…");
+    try {
+      const { fb, ig } = await bakeBoth(post);
+      const stamp = new Date().toISOString().slice(0, 10);
+      const slug = `${post.line1}-${post.line2}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+      downloadDataUrl(fb, `oar-fb-${slug || "post"}-${stamp}.jpg`);
+      await new Promise(r => setTimeout(r, 350));
+      downloadDataUrl(ig, `oar-ig-${slug || "post"}-${stamp}.jpg`);
+      setStudioStatus("Downloaded Facebook (4:5) and Instagram (1:1).", "ok");
+    } catch (err) {
+      console.error(err);
+      setStudioStatus("Download failed. Try another photo or refresh the page.", "err");
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function copyCaption() {
+    readStudioForm();
+    try {
+      await navigator.clipboard.writeText(studio.caption);
+      setStudioStatus("Caption copied.", "ok");
+    } catch {
+      setStudioStatus("Couldn’t copy — select the caption and copy manually.", "err");
+    }
+  }
+
   document.getElementById("emailPete").addEventListener("click", () => {
     const state = ensureState();
     const blocks = SLOTS.map(s => {
       const item = state[s.id];
       const status = item.status === "approved" ? "APPROVED" : item.status === "editing" ? "EDITING" : "AWAITING";
-      return `OAR-SM-${s.id} (${s.day}) — ${status}%0D%0ACaption:%0D%0A${encodeURIComponent(item.caption).replace(/%0A/g, "%0D%0A")}`;
+      const head = `${item.line1} ${item.line2}`;
+      return `OAR-SM-${s.id} (${s.day}) — ${status}%0D%0AHeadline: ${encodeURIComponent(head)}%0D%0ACaption:%0D%0A${encodeURIComponent(item.caption).replace(/%0A/g, "%0D%0A")}`;
     });
     location.href = `mailto:pete@cherryprojects.co.uk?subject=${encodeURIComponent("On A Roll social — Jon decisions")}&body=Hi Pete,%0D%0A%0D%0A${blocks.join("%0D%0A%0D%0A---%0D%0A%0D%0A")}%0D%0A`;
   });
 
+  /* —— Init —— */
   (async function init() {
     const state = ensureState();
-    // migrate missing fields
-    for (const slot of SLOTS) {
-      if (typeof state[slot.id].variant !== "number") state[slot.id].variant = 0;
-      if (!state[slot.id].caption) state[slot.id].caption = SUGGESTIONS[slot.id][0].caption;
-      if (!state[slot.id].status) state[slot.id].status = "awaiting";
+    // restore uploads
+    if (state._uploads) {
+      Object.assign(uploadCache, state._uploads);
     }
-    document.getElementById("stack").innerHTML = `<p style="color:#2a343d">Loading Facebook previews…</p>`;
+    renderPacks();
+    renderPhotoRow();
+    // seed studio from Monday
+    const mon = state["001"];
+    studio.photo = mon.photo || "bg-001";
+    studio.customPhoto = mon.customPhoto || null;
+    studio.line1 = mon.line1;
+    studio.line2 = mon.line2;
+    studio.sub = mon.sub;
+    studio.cta = mon.cta || DEFAULT_CTA;
+    studio.caption = mon.caption;
+    studio.applySlot = "001";
+    studio.variant = mon.variant || 0;
+    writeStudioForm();
+    renderStudioPreview();
+    renderAll(state);
+
+    // live update preview
+    ["line1","line2","sub","cta","caption","applySlot"].forEach(id => {
+      document.getElementById(id).addEventListener("input", () => {
+        renderStudioPreview();
+        setStudioStatus("");
+      });
+      document.getElementById(id).addEventListener("change", () => renderStudioPreview());
+    });
+    document.getElementById("btnCaption").addEventListener("click", () => {
+      readStudioForm();
+      studio.caption = buildCaption(studio, studio.applySlot);
+      writeStudioForm();
+      setStudioStatus("Caption rebuilt from headline + sub.", "ok");
+    });
+    document.getElementById("btnApply").addEventListener("click", applyToWeek);
+    document.getElementById("btnDownload").addEventListener("click", downloadBoth);
+    document.getElementById("btnCopy").addEventListener("click", copyCaption);
+
+    window.addEventListener("resize", () => scaleCardCreatives());
+
+    // preload stock assets so first bake is instant
     try {
-      await ensureImages(state);
-      renderAll(state);
+      await Promise.all([LOGO, ...PHOTOS.map(p => p.src)].map(loadImage));
+      setStudioStatus("Studio ready — edit, download, or apply to the week.");
     } catch (err) {
-      console.error(err);
-      document.getElementById("stack").innerHTML = `<p style="color:#7a3e00">Couldn’t load preview assets. Check you’re on the live GitHub page (not a local file).</p>`;
+      console.warn(err);
+      setStudioStatus("Loaded with limited assets. Uploads and text still work.");
     }
   })();
   </script>
