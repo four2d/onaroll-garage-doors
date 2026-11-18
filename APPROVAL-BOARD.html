@@ -278,28 +278,48 @@
     .badge.approved{color:#0f5c38; background:var(--ok-bg); border-color:#b7e0c7}
     .badge.editing{color:var(--blue-dark); background:#e8f2fc; border-color:#b7d4f0}
 
-    .btns{display:grid; grid-template-columns:1.15fr 1fr 1fr; gap:.5rem}
-    @media (max-width:520px){.btns{grid-template-columns:1fr}}
+    .btns{
+      display:grid; grid-template-columns:1fr 1fr; gap:.5rem; align-items:stretch;
+    }
+    .btns .btn-approve,
+    .btns .approve-row{grid-column:1 / -1}
     .btns button{
       appearance:none; border:0; cursor:pointer; font-weight:750; font-size:.95rem;
       padding:.9rem 1rem; border-radius:12px; min-height:48px;
-      transition:transform .12s ease, filter .12s ease, background .15s ease;
+      transition:transform .12s ease, filter .12s ease, background .15s ease, opacity .15s ease;
     }
     .btns button:hover{filter:brightness(1.05)}
     .btns button:active{transform:scale(.985)}
     .btns button:disabled{opacity:.45; cursor:not-allowed; transform:none; filter:none}
-    .btn-approve{background:var(--ok); color:#fff; box-shadow:0 3px 12px rgba(11,28,40,.16)}
-    .btn-approve.is-approved{
-      background:#fff; color:var(--ok); border:1.5px solid #b7e0c7 !important;
-      box-shadow:none;
+    .btn-approve{
+      background:var(--ok); color:#fff; font-size:1.05rem;
+      box-shadow:0 4px 16px rgba(31,122,77,.28); min-height:54px;
     }
-    .btn-edit{
-      background:#fff; color:var(--blue-dark); border:1.5px solid #9ec5e8 !important;
+    .approve-row{
+      display:flex; align-items:center; justify-content:space-between; gap:.75rem;
+      padding:.85rem 1rem; border-radius:12px; min-height:54px;
+      background:var(--ok-bg); border:1.5px solid #b7e0c7;
     }
-    .btn-change{
-      background:#fff; color:var(--warn); border:1.5px solid #e2b48a !important;
+    .approve-row .locked{
+      display:inline-flex; align-items:center; gap:8px;
+      font-weight:750; color:#0f5c38; font-size:.95rem;
     }
-    .hint{margin:.65rem 0 0; font-size:.84rem; color:var(--muted); min-height:1.15em}
+    .approve-row .locked svg{width:18px; height:18px; flex:0 0 auto}
+    .btn-undo{
+      appearance:none; border:0; background:transparent; cursor:pointer;
+      color:var(--muted); font-weight:650; font-size:.88rem; padding:.35rem .55rem;
+      border-radius:8px; min-height:36px; text-decoration:underline; text-underline-offset:3px;
+    }
+    .btn-undo:hover{color:var(--ink); background:rgba(255,255,255,.55)}
+    .btn-edit, .btn-change{
+      background:#f3f6f9; color:var(--muted); border:1px solid #d5dde5 !important;
+      font-size:.9rem; font-weight:650; min-height:44px; box-shadow:none;
+      padding:.65rem .75rem;
+    }
+    .btn-edit:hover, .btn-change:hover{filter:none; background:#e8eef3; color:var(--ink)}
+    .btn-edit{color:var(--blue-dark)}
+    .btn-change{color:var(--warn)}
+    .hint{margin:.55rem 0 0; font-size:.84rem; color:var(--muted); min-height:1.15em}
 
     .tick{display:inline-flex; align-items:center; gap:6px; font-weight:750; color:#0f5c38}
     .tick svg{width:16px; height:16px}
@@ -307,17 +327,40 @@
     .summary{
       position:sticky; bottom:0; background:rgba(11,28,40,.97); color:#fff;
       padding:1rem 1.15rem calc(1rem + env(safe-area-inset-bottom));
-      display:flex; flex-wrap:wrap; gap:.75rem;
+      display:flex; flex-wrap:wrap; gap:.85rem;
       align-items:center; justify-content:space-between;
       box-shadow:0 -10px 28px rgba(0,0,0,.18); z-index:20;
       backdrop-filter:blur(8px);
     }
+    .summary-main{flex:1 1 180px; min-width:0}
+    .summary .progress-track{
+      height:6px; border-radius:999px; background:rgba(255,255,255,.14);
+      overflow:hidden; margin:0 0 .55rem;
+    }
+    .summary .progress-fill{
+      height:100%; width:0%; border-radius:999px; background:var(--blue);
+      transition:width .35s cubic-bezier(.2,.8,.2,1);
+    }
+    .summary .progress-fill.done{background:#3ecf8e}
     .summary p{margin:0; font-size:.9rem; color:#d7e4ec}
+    .summary p.ready{color:#fff; font-weight:650}
     .summary button{
       appearance:none; border:0; background:var(--blue-dark); color:#fff; font-weight:750;
       padding:.75rem 1.05rem; border-radius:11px; cursor:pointer; min-height:44px;
+      transition:opacity .15s ease, filter .15s ease, transform .12s ease, box-shadow .15s ease;
     }
     .summary button:hover{filter:brightness(1.06)}
+    .summary button:disabled,
+    .summary button.is-dim{
+      opacity:.38; cursor:not-allowed; filter:none; box-shadow:none;
+    }
+    .summary button.is-hero{
+      opacity:1; cursor:pointer;
+      background:#3ecf8e; color:#0b1c28;
+      box-shadow:0 4px 18px rgba(62,207,142,.35);
+      padding:.85rem 1.2rem; font-size:1rem;
+    }
+    .summary button.is-hero:hover{filter:brightness(1.04)}
 
 
     /* Keep head/caption/media in flow so the creative does not jump when Edit opens */
@@ -351,8 +394,28 @@
       margin:0 0 .85rem; font-size:.8rem; color:var(--muted); line-height:1.4;
     }
     .edit-section .field:last-child{margin-bottom:0}
+    .edit-more{
+      margin:0 0 1rem; border:1px solid var(--line); border-radius:12px; background:#fff; overflow:hidden;
+    }
+    .edit-more > summary{
+      list-style:none; cursor:pointer; padding:.9rem 1rem; font-weight:750; font-size:.92rem;
+      color:var(--blue-dark); display:flex; align-items:center; justify-content:space-between; gap:.5rem;
+      user-select:none;
+    }
+    .edit-more > summary::-webkit-details-marker{display:none}
+    .edit-more > summary::after{
+      content:"+"; font-size:1.15rem; font-weight:700; color:var(--muted); line-height:1;
+    }
+    .edit-more[open] > summary::after{content:"–"}
+    .edit-more > summary:hover{background:#f5f8fb}
+    .edit-more .more-body{padding:0 1rem 1rem; border-top:1px solid var(--line)}
+    .edit-more .more-body .edit-section{
+      margin:1rem 0 0; padding:0; border:0; border-radius:0; background:transparent;
+    }
+    .edit-more .more-body .sec-help{margin-bottom:.65rem}
     .inline-edit .studio-actions{margin-top:.85rem}
     .inline-edit .status-line{margin:.55rem 0 0}
+    .field textarea.caption-short{min-height:96px}
     .fb.editing .fb-media{border-top:1px solid var(--line)}
     .ig-mini{
       margin-top:.75rem; padding-top:.75rem; border-top:1px dashed #c9d3dc;
@@ -374,8 +437,8 @@
   <header>
     <div class="row">
       <div>
-        <h1>This week’s posts <span class="pill" id="verPill">v28</span></h1>
-        <p>Three posts for Jon to review. Approve, edit, or change — nothing goes live until Pete publishes.</p>
+        <h1>This week’s posts <span class="pill" id="verPill">v29</span></h1>
+        <p>Tap <strong>Approve</strong> on each post — or Edit / Change if you want a tweak. Nothing goes live until Pete publishes.</p>
       </div>
     </div>
   </header>
@@ -384,15 +447,18 @@
     <div class="week-bar" id="weekBar" aria-label="Week progress"></div>
 
     <div class="board-head" id="boardHead">
-      <h2>Feed preview</h2>
-      <p>How each post will look on Facebook. Instagram uses the same creative, square-cropped.</p>
+      <h2>Your three posts</h2>
+      <p>Monday, Wednesday, Friday — how each will look on Facebook (Instagram uses the same creative, square-cropped).</p>
     </div>
     <div class="stack" id="stack"></div>
   </div>
 
   <div class="summary">
-    <p id="summaryText">No decisions yet</p>
-    <button type="button" id="emailPete">Email Pete</button>
+    <div class="summary-main">
+      <div class="progress-track" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
+      <p id="summaryText">0 of 3 done</p>
+    </div>
+    <button type="button" id="emailPete" class="is-dim" disabled>Email Pete</button>
   </div>
 
   <script>
@@ -828,14 +894,14 @@
         <div class="edit-top">
           <div>
             <h3>Editing ${slot.day}</h3>
-            <p>Change the words on the image and the caption. Preview updates as you type.</p>
+            <p>Tweak the headline and caption. Preview updates as you type.</p>
           </div>
           <button type="button" class="btn-done" data-action="done">Done</button>
         </div>
 
         <div class="edit-section">
           <h4 class="sec-label">On the image</h4>
-          <p class="sec-help">Big headline, supporting line, and the call-to-action on the photo.</p>
+          <p class="sec-help">The two big lines on the photo.</p>
           <div class="pair">
             <div class="field">
               <label for="line1">Headline · line 1</label>
@@ -846,22 +912,6 @@
               <input id="line2" type="text" maxlength="42" autocomplete="off" placeholder="e.g. is an open invite." />
             </div>
           </div>
-          <div class="field">
-            <label for="sub">Supporting line</label>
-            <input id="sub" type="text" maxlength="110" autocomplete="off" placeholder="Short line under the headline" />
-          </div>
-          <div class="field">
-            <label for="cta">Call to action</label>
-            <input id="cta" type="text" maxlength="60" autocomplete="off" placeholder="Free survey · 01202 553603" />
-          </div>
-        </div>
-
-        <div class="edit-section">
-          <h4 class="sec-label">Photo</h4>
-          <p class="sec-help">Stock shot or upload a real install photo.</p>
-          <div class="field">
-            <div class="photos" id="photoRow"></div>
-          </div>
         </div>
 
         <div class="edit-section">
@@ -869,21 +919,49 @@
           <p class="sec-help">What people read below the image on Facebook and Instagram.</p>
           <div class="field">
             <label for="caption">Caption</label>
-            <textarea id="caption" maxlength="2200"></textarea>
+            <textarea id="caption" class="caption-short" maxlength="2200"></textarea>
             <p class="hint"><button type="button" class="pack" id="btnCaption">Rebuild caption from headline</button></p>
           </div>
         </div>
 
         <div class="studio-actions">
           <button type="button" class="btn-done" data-action="done">Done</button>
-          <button type="button" class="btn-dl" id="btnDownload">Download FB + IG</button>
-          <button type="button" class="btn-ghost" id="btnCopy">Copy caption</button>
         </div>
+
+        <details class="edit-more" id="editMore">
+          <summary>More options</summary>
+          <div class="more-body">
+            <div class="edit-section">
+              <h4 class="sec-label">Photo</h4>
+              <p class="sec-help">Stock shot or upload a real install photo.</p>
+              <div class="field">
+                <div class="photos" id="photoRow"></div>
+              </div>
+            </div>
+            <div class="edit-section">
+              <h4 class="sec-label">Extra on-image text</h4>
+              <p class="sec-help">Supporting line and the call-to-action on the photo.</p>
+              <div class="field">
+                <label for="sub">Supporting line</label>
+                <input id="sub" type="text" maxlength="110" autocomplete="off" placeholder="Short line under the headline" />
+              </div>
+              <div class="field">
+                <label for="cta">Call to action</label>
+                <input id="cta" type="text" maxlength="60" autocomplete="off" placeholder="Free survey · 01202 553603" />
+              </div>
+            </div>
+            <div class="studio-actions">
+              <button type="button" class="btn-dl" id="btnDownload">Download FB + IG</button>
+              <button type="button" class="btn-ghost" id="btnCopy">Copy caption</button>
+            </div>
+            <div class="ig-mini">
+              <div class="tag">Instagram preview · 1:1</div>
+              <div class="preview-frame ig-inline"><div class="stage" id="prevIg"></div></div>
+            </div>
+          </div>
+        </details>
+
         <p class="status-line" id="studioStatus" role="status"></p>
-        <div class="ig-mini">
-          <div class="tag">Instagram preview · 1:1</div>
-          <div class="preview-frame ig-inline"><div class="stage" id="prevIg"></div></div>
-        </div>
       </div>`;
   }
 
@@ -896,8 +974,7 @@
       if (panel) panel.remove();
       const editBtn = card.querySelector('[data-action="edit"]');
       if (editBtn) { editBtn.disabled = false; editBtn.textContent = "Edit"; }
-      const approveBtn = card.querySelector('[data-action="approve"]');
-      if (approveBtn) approveBtn.disabled = false;
+      card.querySelectorAll('[data-action="approve"]').forEach(btn => { btn.disabled = false; });
     });
   }
 
@@ -1009,8 +1086,7 @@
     }
     const editBtn = card.querySelector('[data-action="edit"]');
     if (editBtn) { editBtn.disabled = true; editBtn.textContent = "Editing…"; }
-    const approveBtn = card.querySelector('[data-action="approve"]');
-    if (approveBtn) approveBtn.disabled = true;
+    card.querySelectorAll('[data-action="approve"]').forEach(btn => { btn.disabled = true; });
 
     wireInlineEditor();
     setStudioStatus(`Editing ${dayName(id)} — change anything, then tap Done.`);
@@ -1239,14 +1315,17 @@
   }
 
   function hintFor(status, selected) {
-    if (status === "approved") return "Approved — tap Undo if you change your mind.";
-    if (editorOpen && selected) return "Editing above — tap Done when it looks right.";
-    return "Approve this post, Edit any part, or Change for a new suggestion.";
+    if (status === "approved") return "Looks good. Tap Undo only if you change your mind.";
+    if (editorOpen && selected) return "Editing in this card — tap Done when it looks right.";
+    return "Happy with it? Tap Approve. Need a tweak? Edit or Change.";
   }
 
   function approveButtonHTML(status) {
     if (status === "approved") {
-      return `<button type="button" class="btn-approve is-approved" data-action="approve" aria-pressed="true">Undo</button>`;
+      return `<div class="approve-row">
+        <span class="locked"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg> Approved</span>
+        <button type="button" class="btn-undo" data-action="approve" aria-pressed="true">Undo</button>
+      </div>`;
     }
     return `<button type="button" class="btn-approve" data-action="approve" aria-pressed="false">Approve</button>`;
   }
@@ -1392,14 +1471,23 @@
 
   function renderSummary(state) {
     const approved = SLOTS.filter(s => state[s.id]?.status === "approved").length;
-    const parts = SLOTS.map(s => {
-      const st = state[s.id]?.status || "awaiting";
-      return `${s.day} ${st === "approved" ? "✓" : "·"}`;
-    });
     const el = document.getElementById("summaryText");
-    if (approved === 3) el.textContent = "All three approved — email Pete when you’re ready.";
-    else if (approved === 0) el.textContent = "No approvals yet — " + parts.join("  ");
-    else el.textContent = `${approved}/3 approved — ${parts.join("  ")}`;
+    const fill = document.getElementById("progressFill");
+    const email = document.getElementById("emailPete");
+    if (fill) {
+      fill.style.width = `${(approved / 3) * 100}%`;
+      fill.classList.toggle("done", approved === 3);
+    }
+    el.classList.toggle("ready", approved === 3);
+    if (approved === 3) el.textContent = "All set — tap Email Pete.";
+    else if (approved === 0) el.textContent = "0 of 3 done — tap Approve on a post";
+    else el.textContent = `${approved} of 3 done`;
+
+    if (email) {
+      email.disabled = approved === 0;
+      email.classList.toggle("is-dim", approved === 0);
+      email.classList.toggle("is-hero", approved === 3);
+    }
   }
 
   async function downloadBoth() {
@@ -1441,6 +1529,8 @@
 
   document.getElementById("emailPete").addEventListener("click", () => {
     const state = ensureState();
+    const approved = SLOTS.filter(s => state[s.id]?.status === "approved").length;
+    if (!approved) return;
     const blocks = SLOTS.map(s => {
       const item = state[s.id];
       const status = item.status === "approved" ? "APPROVED" : item.status === "editing" ? "EDITING" : "AWAITING";
