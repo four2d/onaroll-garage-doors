@@ -15,7 +15,7 @@
       --radius:14px;
     }
     *{box-sizing:border-box}
-    html{scroll-behavior:smooth}
+    html{overflow-anchor:none}
     body{
       margin:0; font-family:Helvetica,Arial,"Segoe UI",sans-serif;
       background:var(--paper); color:var(--ink); line-height:1.45;
@@ -231,6 +231,7 @@
     .stack{display:flex; flex-direction:column; gap:1.5rem}
 
     .fb{
+      overflow-anchor:none;
       background:var(--card); border-radius:var(--radius); overflow:hidden;
       border:1px solid var(--line); box-shadow:var(--shadow);
       transition:box-shadow .2s ease, border-color .2s ease;
@@ -314,6 +315,39 @@
     }
     .summary button:hover{filter:brightness(1.06)}
 
+
+    /* Keep head/caption/media in flow so the creative does not jump when Edit opens */
+    .fb.editing .fb-stats,
+    .fb.editing .fb-actions-row,
+    .fb.editing .controls{display:none}
+    .fb.editing .fb-caption{
+      display:-webkit-box; /* still show live caption while editing */
+    }
+    .inline-edit{
+      padding:1rem 1rem 1.15rem; border-top:1px solid var(--line); background:#f5f8fb;
+      animation:rise .22s cubic-bezier(.2,.8,.2,1) both;
+    }
+    .inline-edit .edit-top{
+      display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.6rem;
+      margin-bottom:.85rem;
+    }
+    .inline-edit .edit-top h3{
+      margin:0; font-size:1rem; font-weight:750; letter-spacing:-.01em;
+    }
+    .inline-edit .edit-top p{margin:.2rem 0 0; font-size:.82rem; color:var(--muted)}
+    .inline-edit .studio-actions{margin-top:.85rem}
+    .inline-edit .status-line{margin:.55rem 0 0}
+    .fb.editing .fb-media{border-top:1px solid var(--line)}
+    .ig-mini{
+      margin-top:.75rem; padding-top:.75rem; border-top:1px dashed #c9d3dc;
+    }
+    .ig-mini .tag{margin-bottom:.4rem}
+    .preview-frame.ig-inline{width:148px; margin:0 auto}
+    .preview-frame.ig-inline .stage{padding-top:100%}
+    .preview-frame.ig-inline .stage > .creative{
+      height:1080px; transform:scale(calc(148 / 1080));
+    }
+
     .sr-only{
       position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
       clip:rect(0,0,0,0); white-space:nowrap; border:0;
@@ -324,7 +358,7 @@
   <header>
     <div class="row">
       <div>
-        <h1>This week’s posts <span class="pill" id="verPill">v23</span></h1>
+        <h1>This week’s posts <span class="pill" id="verPill">v25</span></h1>
         <p>Three posts for Jon to review. Approve, edit, or change — nothing goes live until Pete publishes.</p>
       </div>
     </div>
@@ -332,72 +366,6 @@
 
   <div class="wrap">
     <div class="week-bar" id="weekBar" aria-label="Week progress"></div>
-
-    <div class="editor-chrome" id="editorChrome" hidden>
-      <div class="day-tabs" id="dayTabs" role="tablist" aria-label="Post day"></div>
-
-      <section class="studio" id="studio" aria-label="Edit post">
-        <div class="studio-head">
-          <div>
-            <h2 id="studioTitle">Monday</h2>
-            <p class="sub" id="studioSub">Change photo, headline, caption — saves as you type</p>
-          </div>
-          <div class="head-actions">
-            <button type="button" class="btn-done" id="btnDone">Done</button>
-          </div>
-        </div>
-        <div class="studio-grid">
-          <div class="studio-form">
-            <div class="field">
-              <label>Photo</label>
-              <div class="photos" id="photoRow"></div>
-              <p class="hint">Stock shot or upload a real install photo.</p>
-            </div>
-            <div class="pair">
-              <div class="field">
-                <label for="line1">Headline line 1</label>
-                <input id="line1" type="text" maxlength="42" autocomplete="off" />
-              </div>
-              <div class="field">
-                <label for="line2">Headline line 2</label>
-                <input id="line2" type="text" maxlength="42" autocomplete="off" />
-              </div>
-            </div>
-            <div class="field">
-              <label for="sub">Subline</label>
-              <input id="sub" type="text" maxlength="110" autocomplete="off" />
-            </div>
-            <div class="field">
-              <label for="cta">CTA on image</label>
-              <input id="cta" type="text" maxlength="60" value="Free survey · 01202 553603" autocomplete="off" />
-            </div>
-            <div class="field">
-              <label for="caption">Caption (FB &amp; IG)</label>
-              <textarea id="caption" maxlength="2200"></textarea>
-              <p class="hint"><button type="button" class="pack" id="btnCaption" style="margin:0">Rebuild caption from headline</button></p>
-            </div>
-            <div class="studio-actions">
-              <button type="button" class="btn-primary" id="btnDone2">Done</button>
-              <button type="button" class="btn-dl" id="btnDownload">Download FB + IG</button>
-              <button type="button" class="btn-ghost" id="btnCopy">Copy caption</button>
-            </div>
-            <p class="status-line" id="studioStatus" role="status"></p>
-          </div>
-          <div class="studio-preview">
-            <div class="preview-row">
-              <div class="preview-col">
-                <div class="tag">Facebook · 1080×1350</div>
-                <div class="preview-frame fb"><div class="stage" id="prevFb"></div></div>
-              </div>
-              <div class="preview-col">
-                <div class="tag">Instagram · 1080×1080</div>
-                <div class="preview-frame ig"><div class="stage" id="prevIg"></div></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
 
     <div class="board-head" id="boardHead">
       <h2>Feed preview</h2>
@@ -412,7 +380,7 @@
   </div>
 
   <script>
-  const KEY = "oar-jon-board-v23";
+  const KEY = "oar-jon-board-v25";
   const PAGE = "On A Roll Garage Doors";
   const LOGO = "logo.jpg";
   const PRICE = "From £1,250";
@@ -758,11 +726,6 @@
   }
 
   /* —— Studio UI —— */
-  function setStudioStatus(msg, kind) {
-    const el = document.getElementById("studioStatus");
-    el.textContent = msg || "";
-    el.className = "status-line" + (kind ? " " + kind : "");
-  }
 
   function dayName(id) {
     return (SLOTS.find(s => s.id === id) || {}).day || id;
@@ -799,26 +762,15 @@
     quiet = false;
   }
 
-  function renderStudioPreview() {
-    const post = currentPostFromForm();
-    const fb = document.getElementById("prevFb");
-    const ig = document.getElementById("prevIg");
-    fb.innerHTML = creativeHTML(post, "fb");
-    ig.innerHTML = creativeHTML(post, "ig");
-    const fbC = fb.querySelector(".creative");
-    const igC = ig.querySelector(".creative");
-    if (fbC) fbC.style.transform = `scale(${230 / 1080})`;
-    if (igC) igC.style.transform = `scale(${200 / 1080})`;
-  }
 
   function commitSelected(opts = {}) {
     const state = ensureState();
+    if (!editorOpen && !opts.force) return state;
     const post = currentPostFromForm();
     if (!post.line1 || !post.line2) {
       if (!opts.silent) setStudioStatus("Add both headline lines.", "err");
       return state;
     }
-    // preserve status unless reset
     if (!opts.resetStatus) post.status = state[selectedId]?.status || "awaiting";
     else post.status = "awaiting";
     if (post.customPhoto && uploadCache[post.customPhoto]) {
@@ -826,70 +778,277 @@
       state._uploads[post.customPhoto] = uploadCache[post.customPhoto];
     }
     state[selectedId] = post;
+    // keep caption on the hidden caption node in sync for approve path
+    const cap = document.querySelector(`.fb[data-id="${selectedId}"] [data-caption]`);
+    if (cap) cap.textContent = post.caption;
     saveState(state);
-    renderAll(state);
-    renderDayTabs(state);
-    if (!quiet && !opts.silent) setStudioStatus(`Saved · ${dayName(selectedId)}`, "ok");
+    renderWeekBar(state);
+    if (!opts.silent) {
+      renderAll(state);
+      if (editorOpen) wireInlineEditor();
+      setStudioStatus(`Saved · ${dayName(selectedId)}`, "ok");
+    }
     return state;
   }
 
   function scheduleCommit() {
     if (quiet) return;
-    renderStudioPreview();
+    refreshCardCreative();
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => commitSelected({ silent: true }), 280);
     setStudioStatus(`Editing ${dayName(selectedId)}…`);
   }
 
-  function setEditorOpen(open) {
-    editorOpen = open;
-    const chrome = document.getElementById("editorChrome");
-    if (open) {
-      chrome.hidden = false;
-      chrome.classList.add("open");
-    } else {
-      chrome.hidden = true;
-      chrome.classList.remove("open");
-    }
-    renderAll(ensureState());
-    renderDayTabs(ensureState());
+  function setStudioStatus(msg, kind) {
+    const el = document.getElementById("studioStatus");
+    if (!el) return;
+    el.textContent = msg || "";
+    el.className = "status-line" + (kind ? " " + kind : "");
+  }
+
+  function inlineEditHTML(slot) {
+    return `
+      <div class="inline-edit" data-inline-edit>
+        <div class="edit-top">
+          <div>
+            <h3>Editing ${slot.day}</h3>
+            <p>Changes save as you type. The preview above updates live.</p>
+          </div>
+          <button type="button" class="btn-done" data-action="done">Done</button>
+        </div>
+        <div class="field">
+          <label>Photo</label>
+          <div class="photos" id="photoRow"></div>
+          <p class="hint">Stock shot or upload a real install photo.</p>
+        </div>
+        <div class="pair">
+          <div class="field">
+            <label for="line1">Headline line 1</label>
+            <input id="line1" type="text" maxlength="42" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="line2">Headline line 2</label>
+            <input id="line2" type="text" maxlength="42" autocomplete="off" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="sub">Subline</label>
+          <input id="sub" type="text" maxlength="110" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="cta">CTA on image</label>
+          <input id="cta" type="text" maxlength="60" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="caption">Caption (FB &amp; IG)</label>
+          <textarea id="caption" maxlength="2200"></textarea>
+          <p class="hint"><button type="button" class="pack" id="btnCaption">Rebuild caption from headline</button></p>
+        </div>
+        <div class="studio-actions">
+          <button type="button" class="btn-done" data-action="done">Done</button>
+          <button type="button" class="btn-dl" id="btnDownload">Download FB + IG</button>
+          <button type="button" class="btn-ghost" id="btnCopy">Copy caption</button>
+        </div>
+        <p class="status-line" id="studioStatus" role="status"></p>
+        <div class="ig-mini">
+          <div class="tag">Instagram preview · 1:1</div>
+          <div class="preview-frame ig-inline"><div class="stage" id="prevIg"></div></div>
+        </div>
+      </div>`;
+  }
+
+  function collapseAnyEditor() {
+    document.querySelectorAll(".fb.editing").forEach(card => {
+      card.classList.remove("editing", "selected");
+      const when = card.querySelector(".fb-day .when");
+      if (when) when.textContent = when.textContent.replace(" · Editing", "");
+      const panel = card.querySelector("[data-inline-edit]");
+      if (panel) panel.remove();
+      const editBtn = card.querySelector('[data-action="edit"]');
+      if (editBtn) { editBtn.disabled = false; editBtn.textContent = "Edit"; }
+      const approveBtn = card.querySelector('[data-action="approve"]');
+      if (approveBtn) approveBtn.disabled = false;
+    });
+  }
+
+  function scrollInstant(y) {
+    window.scrollTo({ top: y, left: 0, behavior: "auto" });
+  }
+
+  function pinMedia(id, mediaTop, fallbackY) {
+    const lock = () => {
+      if (mediaTop != null) {
+        const m = document.querySelector(`.fb[data-id="${id}"] .fb-media`);
+        if (m) {
+          const delta = m.getBoundingClientRect().top - mediaTop;
+          if (Math.abs(delta) > 1) window.scrollBy(0, delta);
+          return;
+        }
+      }
+      scrollInstant(fallbackY);
+    };
+    lock();
+    requestAnimationFrame(() => { lock(); requestAnimationFrame(lock); });
+    setTimeout(lock, 0);
+    setTimeout(lock, 60);
+    setTimeout(lock, 160);
+  }
+
+  function freezeScroll(fn) {
+    const y = window.scrollY;
+    fn();
+    const lock = () => scrollInstant(y);
+    lock();
+    requestAnimationFrame(() => {
+      lock();
+      requestAnimationFrame(lock);
+    });
+    setTimeout(lock, 0);
+    setTimeout(lock, 80);
   }
 
   function openEditor(id) {
+    const media = document.querySelector(`.fb[data-id="${id}"] .fb-media`);
+    const mediaTop = media ? media.getBoundingClientRect().top : null;
+    const y = window.scrollY;
+
+    if (editorOpen && selectedId === id) {
+      pinMedia(id, mediaTop, y);
+      return;
+    }
+    if (editorOpen && selectedId !== id) {
+      commitSelected({ silent: true });
+      collapseAnyEditor();
+    }
     selectedId = id;
+    editorOpen = true;
     const state = ensureState();
-    const post = state[id];
-    document.getElementById("studioTitle").textContent = dayName(id);
-    renderPhotoRow();
-    fillFormFromPost(post);
-    renderStudioPreview();
-    setEditorOpen(true);
+    const slot = SLOTS.find(s => s.id === id);
+    const card = document.getElementById(`card-${id}`);
+    if (!card) return;
+
+    card.classList.add("editing", "selected");
+    const when = card.querySelector(".fb-day .when");
+    if (when && !when.textContent.includes("Editing")) when.textContent = `${slot.day} · Editing`;
+    const badge = card.querySelector("[data-badge]");
+    if (badge) badge.innerHTML = badgeHTML("editing");
+
+    let panel = card.querySelector("[data-inline-edit]");
+    if (!panel) {
+      const mediaEl = card.querySelector(".fb-media");
+      mediaEl.insertAdjacentHTML("afterend", inlineEditHTML(slot));
+    }
+    const editBtn = card.querySelector('[data-action="edit"]');
+    if (editBtn) { editBtn.disabled = true; editBtn.textContent = "Editing…"; }
+    const approveBtn = card.querySelector('[data-action="approve"]');
+    if (approveBtn) approveBtn.disabled = true;
+
+    wireInlineEditor();
     setStudioStatus(`Editing ${dayName(id)} — change anything, then tap Done.`);
-    document.getElementById("editorChrome").scrollIntoView({ behavior: "smooth", block: "start" });
-    setTimeout(() => document.getElementById("line1").focus(), 320);
+    // Keep the post creative fixed in the viewport — editor expands below it in-card
+    pinMedia(id, mediaTop, y);
   }
 
   function closeEditor() {
+    if (!editorOpen) return;
+    const id = selectedId;
+    const media = document.querySelector(`.fb[data-id="${id}"] .fb-media`);
+    const mediaTop = media ? media.getBoundingClientRect().top : null;
+    const y = window.scrollY;
+
     commitSelected({ silent: true });
-    setEditorOpen(false);
-    const card = document.querySelector(`.fb[data-id="${selectedId}"]`);
-    if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+    editorOpen = false;
+    const state = ensureState();
+    const item = state[id];
+    const card = document.getElementById(`card-${id}`);
+    if (card) {
+      collapseAnyEditor();
+      const stage = card.querySelector("[data-stage]");
+      if (stage) {
+        stage.innerHTML = creativeHTML(item, "fb");
+        const w = stage.clientWidth || stage.parentElement.clientWidth;
+        const c = stage.querySelector(".creative");
+        if (c && w) c.style.transform = `scale(${w / 1080})`;
+      }
+      const cap = card.querySelector("[data-caption]");
+      if (cap) cap.textContent = item.caption;
+      const badge = card.querySelector("[data-badge]");
+      if (badge) badge.innerHTML = badgeHTML(item.status);
+      const hint = card.querySelector("[data-hint]");
+      if (hint) hint.textContent = hintFor(item.status, false);
+    }
+    renderWeekBar(state);
+    renderSummary(state);
+    pinMedia(id, mediaTop, y);
   }
 
-  function selectDay(id, { open = false } = {}) {
-    selectedId = id;
+  function wireInlineEditor() {
+    if (!editorOpen) return;
     const state = ensureState();
-    const post = state[id];
-    document.getElementById("studioTitle").textContent = dayName(id);
-    if (editorOpen || open) {
-      renderPhotoRow();
-      fillFormFromPost(post);
-      renderStudioPreview();
-      setStudioStatus(`Editing ${dayName(id)} — change anything, then tap Done.`);
+    const post = state[selectedId];
+    renderPhotoRow();
+    fillFormFromPost(post);
+    refreshCardCreative();
+    ["line1","line2","sub","cta","caption"].forEach(fid => {
+      const el = document.getElementById(fid);
+      if (!el || el.dataset.wired === "1") return;
+      el.dataset.wired = "1";
+      el.addEventListener("input", () => {
+        scheduleCommit();
+        refreshCardCreative();
+      });
+    });
+    const rebuild = document.getElementById("btnCaption");
+    if (rebuild && rebuild.dataset.wired !== "1") {
+      rebuild.dataset.wired = "1";
+      rebuild.addEventListener("click", () => {
+        const post = currentPostFromForm();
+        document.getElementById("caption").value = buildCaption(post, selectedId);
+        commitSelected({ silent: true });
+        refreshCardCreative();
+        setStudioStatus("Caption rebuilt from headline + sub.", "ok");
+      });
     }
-    renderDayTabs(state);
-    renderAll(state);
-    if (open) setEditorOpen(true);
+    const dl = document.getElementById("btnDownload");
+    if (dl && dl.dataset.wired !== "1") {
+      dl.dataset.wired = "1";
+      dl.addEventListener("click", downloadBoth);
+    }
+    const copy = document.getElementById("btnCopy");
+    if (copy && copy.dataset.wired !== "1") {
+      copy.dataset.wired = "1";
+      copy.addEventListener("click", copyCaption);
+    }
+    // Done buttons inside injected panel
+    document.querySelectorAll(`.fb[data-id="${selectedId}"] [data-action="done"]`).forEach(btn => {
+      if (btn.dataset.wired === "1") return;
+      btn.dataset.wired = "1";
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        closeEditor();
+      });
+    });
+  }
+
+  function refreshCardCreative() {
+    const post = currentPostFromForm();
+    const card = document.querySelector(`.fb[data-id="${selectedId}"]`);
+    if (!card) return;
+    const stage = card.querySelector("[data-stage]");
+    if (stage) {
+      stage.innerHTML = creativeHTML(post, "fb");
+      const w = stage.clientWidth || stage.parentElement.clientWidth;
+      const c = stage.querySelector(".creative");
+      if (c && w) c.style.transform = `scale(${w / 1080})`;
+    }
+    const cap = card.querySelector("[data-caption]");
+    if (cap) cap.textContent = post.caption || "";
+    const ig = document.getElementById("prevIg");
+    if (ig) {
+      ig.innerHTML = creativeHTML(post, "ig");
+      const c = ig.querySelector(".creative");
+      if (c) c.style.transform = `scale(${148 / 1080})`;
+    }
   }
 
   function statusLabel(st) {
@@ -918,52 +1077,13 @@
 
   function renderDayTabs(state) {
     renderWeekBar(state);
-    const row = document.getElementById("dayTabs");
-    if (!row) return;
-    row.innerHTML = SLOTS.map(s => {
-      return `<button type="button" class="day-tab" role="tab" data-day="${s.id}" aria-selected="${s.id === selectedId}">
-        ${s.day}
-      </button>`;
-    }).join("");
-    row.querySelectorAll("[data-day]").forEach(btn => {
-      btn.addEventListener("click", () => selectDay(btn.dataset.day, { open: true }));
-    });
-  }
-
-  function tryAnotherIdea() {
-    const state = ensureState();
-    const list = SUGGESTIONS[selectedId];
-    const next = ((state[selectedId].variant || 0) + 1) % list.length;
-    const s = list[next];
-    const post = {
-      ...state[selectedId],
-      variant: next,
-      photo: s.photo,
-      customPhoto: null,
-      line1: s.line1,
-      line2: s.line2,
-      sub: s.sub,
-      cta: DEFAULT_CTA,
-      caption: buildCaption(s, selectedId),
-      status: "awaiting"
-    };
-    state[selectedId] = post;
-    saveState(state);
-    fillFormFromPost(post);
-    renderPhotoRow();
-    document.querySelectorAll(".photo-pick[data-photo]").forEach(btn => {
-      btn.setAttribute("aria-pressed", btn.dataset.photo === post.photo ? "true" : "false");
-    });
-    renderStudioPreview();
-    renderAll(state);
-    renderDayTabs(state);
-    setStudioStatus(`Another idea for ${dayName(selectedId)} — keep editing or download.`, "ok");
   }
 
   function renderPhotoRow() {
     const state = ensureState();
     const post = state[selectedId];
     const row = document.getElementById("photoRow");
+    if (!row) return;
     let customBtn = "";
     if (post.customPhoto && uploadCache[post.customPhoto]) {
       customBtn = `<button type="button" class="photo-pick" data-photo="${post.customPhoto}" aria-pressed="${post.photo === post.customPhoto}" title="Uploaded">
@@ -985,9 +1105,12 @@
         row.querySelectorAll(".photo-pick[data-photo]").forEach(b => b.setAttribute("aria-pressed", "false"));
         btn.setAttribute("aria-pressed", "true");
         scheduleCommit();
+        refreshCardCreative();
       });
     });
-    document.getElementById("photoUpload").addEventListener("change", async (e) => {
+    const upload = document.getElementById("photoUpload");
+    if (!upload) return;
+    upload.addEventListener("change", async (e) => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
       try {
@@ -1001,8 +1124,9 @@
         st._uploads[id] = dataUrl;
         saveState(st);
         renderPhotoRow();
-        renderStudioPreview();
-        commitSelected();
+        wireInlineEditor();
+        refreshCardCreative();
+        commitSelected({ silent: true });
         setStudioStatus("Custom photo saved to this day.", "ok");
       } catch (err) {
         console.error(err);
@@ -1052,9 +1176,8 @@
   }
 
   function cardHTML(slot, item) {
-    const selected = slot.id === selectedId && editorOpen;
     return `
-      <article class="fb${selected ? " selected" : ""}" data-id="${slot.id}" id="card-${slot.id}">
+      <article class="fb" data-id="${slot.id}" id="card-${slot.id}">
         <div class="fb-day">
           <span class="when">${slot.day}</span>
           <div data-badge>${badgeHTML(item.status)}</div>
@@ -1079,11 +1202,11 @@
         </div>
         <div class="controls">
           <div class="btns" data-btns>
-              <button type="button" class="btn-approve" data-action="approve"${selected ? " disabled" : ""}>Approve</button>
-              <button type="button" class="btn-edit" data-action="edit">${selected ? "Editing…" : "Edit"}</button>
+              <button type="button" class="btn-approve" data-action="approve">Approve</button>
+              <button type="button" class="btn-edit" data-action="edit">Edit</button>
               <button type="button" class="btn-change" data-action="change">Change</button>
           </div>
-          <p class="hint" data-hint>${hintFor(item.status, selected)}</p>
+          <p class="hint" data-hint>${hintFor(item.status, false)}</p>
         </div>
       </article>`;
   }
@@ -1110,19 +1233,30 @@
       card.querySelectorAll("[data-action]").forEach(btn => {
         btn.addEventListener("click", async () => {
           const action = btn.dataset.action;
+          if (action === "done") {
+            closeEditor();
+            return;
+          }
           if (action === "approve") {
-            if (editorOpen) commitSelected({ silent: true });
+            if (editorOpen && id === selectedId) {
+              commitSelected({ silent: true });
+              state[id] = ensureState()[id];
+              state[id].status = "approved";
+              state[id].caption = document.getElementById("caption")?.value || state[id].caption;
+              editorOpen = false;
+              saveState(state);
+              renderWeekBar(state);
+              renderAll(state);
+              return;
+            }
             state[id].status = "approved";
             state[id].caption = card.querySelector("[data-caption]").textContent;
-            // if approving while editor open for another day, use stored caption
-            if (editorOpen && id === selectedId) {
-              state[id].caption = document.getElementById("caption").value;
-            }
             saveState(state);
-            if (editorOpen && id === selectedId) closeEditor();
-            else { renderAll(state); renderDayTabs(state); }
+            renderAll(state);
+            renderWeekBar(state);
           }
           if (action === "edit") {
+            if (editorOpen && selectedId !== id) commitSelected({ silent: true });
             openEditor(id);
           }
           if (action === "change") {
@@ -1142,15 +1276,22 @@
             if (editorOpen && id === selectedId) {
               fillFormFromPost(state[id]);
               renderPhotoRow();
-              document.querySelectorAll(".photo-pick[data-photo]").forEach(b => {
-                b.setAttribute("aria-pressed", b.dataset.photo === state[id].photo ? "true" : "false");
-              });
-              renderStudioPreview();
+              refreshCardCreative();
+              setStudioStatus("New suggestion loaded — keep editing or tap Done.", "ok");
+              renderWeekBar(state);
+            } else if (editorOpen) {
+              // editing a different card — refresh this one via full render then reopen editor
+              const editingId = selectedId;
+              editorOpen = false;
+              renderAll(state);
+              renderWeekBar(state);
+              openEditor(editingId);
+            } else {
+              renderAll(state);
+              renderWeekBar(state);
+              const hint = document.querySelector(`.fb[data-id="${id}"] [data-hint]`);
+              if (hint) hint.textContent = "New suggestion loaded.";
             }
-            renderAll(state);
-            renderDayTabs(state);
-            const hint = document.querySelector(`.fb[data-id="${id}"] [data-hint]`);
-            if (hint) hint.textContent = "New suggestion loaded.";
           }
         });
       });
@@ -1223,29 +1364,10 @@
     if (state._uploads) Object.assign(uploadCache, state._uploads);
 
     selectedId = "001";
-    setEditorOpen(false);
-    renderDayTabs(state);
+    editorOpen = false;
+    renderWeekBar(state);
     renderAll(state);
-    // warm form for first edit without showing chrome
-    renderPhotoRow();
-    fillFormFromPost(state["001"]);
-    renderStudioPreview();
-
     window.addEventListener("resize", () => scaleCardCreatives());
-
-    ["line1","line2","sub","cta","caption"].forEach(id => {
-      document.getElementById(id).addEventListener("input", scheduleCommit);
-    });
-    document.getElementById("btnCaption").addEventListener("click", () => {
-      const post = currentPostFromForm();
-      document.getElementById("caption").value = buildCaption(post, selectedId);
-      commitSelected();
-      setStudioStatus("Caption rebuilt from headline + sub.", "ok");
-    });
-    document.getElementById("btnDone").addEventListener("click", closeEditor);
-    document.getElementById("btnDone2").addEventListener("click", closeEditor);
-    document.getElementById("btnDownload").addEventListener("click", downloadBoth);
-    document.getElementById("btnCopy").addEventListener("click", copyCaption);
 
     try {
       await Promise.all([LOGO, ...PHOTOS.map(p => p.src)].map(loadImage));
