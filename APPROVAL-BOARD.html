@@ -51,7 +51,7 @@
     .edit-box{padding:0 14px 12px; display:none}
     .edit-box.open{display:block}
     .fb-caption.hide{display:none}
-    .fb-img{width:100%; display:block; background:#111; aspect-ratio:4/5; object-fit:cover}
+    .fb-img{width:100%; display:block; background:#111; height:auto; vertical-align:top}
     .fb-stats{
       display:flex; justify-content:space-between; align-items:center;
       padding:10px 14px; font-size:13px; color:#65676b;
@@ -126,7 +126,7 @@
   </div>
 
   <script>
-  const KEY = "oar-jon-board-v3";
+  const KEY = "oar-jon-board-v4";
   const PAGE = "On A Roll Garage Doors";
 
   const SUGGESTIONS = {
@@ -134,7 +134,7 @@
       {
         headline: ["Stop living", "with that door."],
         sub: "Made-to-measure aluminium rollers. Fitted in about half a day.",
-        caption: "Stop living with that door — from £1,250.\n\nMade-to-measure aluminium rollers fitted across Poole, Bournemouth, Christchurch and Dorset. Tidy half-day install.\n\nFree survey → 01202 553603 · WhatsApp 07534 066813\nonarollgaragedoors.co.uk\n\nOn A Roll Garage Doors — family-run in Poole since 2014.\n\n#OnARollGarageDoors #GarageDoors #RollerGarageDoor #Poole #Bournemouth #Christchurch #Dorset #FreeSurvey #FamilyRun"
+        caption: "Made-to-measure aluminium rollers fitted across Poole, Bournemouth, Christchurch and Dorset. Tidy half-day install. From £1,250.\n\nFree survey → 01202 553603 · WhatsApp 07534 066813\nonarollgaragedoors.co.uk\n\nOn A Roll Garage Doors — family-run in Poole since 2014.\n\n#OnARollGarageDoors #GarageDoors #RollerGarageDoor #Poole #Bournemouth #Christchurch #Dorset #FreeSurvey #FamilyRun"
       },
       {
         headline: ["Your old door", "is costing you."],
@@ -156,7 +156,7 @@
       {
         headline: ["Your garage", "is an open invite."],
         sub: "Electric rollers lock into the guides — no handle for thieves to force.",
-        caption: "Your garage is an open invite. From £1,250.\n\nElectric rollers lock into the guides — no handle for thieves to force.\n\nSend a photo for straight advice → 01202 553603 · WhatsApp 07534 066813\n\nOn A Roll Garage Doors · Poole\n\n#GarageDoorSecurity #HomeSecurity #Poole #Bournemouth #Dorset #OnARollGarageDoors"
+        caption: "Electric rollers lock into the guides — no handle for thieves to force. From £1,250.\n\nSend a photo for straight advice → 01202 553603 · WhatsApp 07534 066813\n\nOn A Roll Garage Doors · Poole\n\n#GarageDoorSecurity #HomeSecurity #Poole #Bournemouth #Dorset #OnARollGarageDoors"
       },
       {
         headline: ["Thieves check", "the garage first."],
@@ -178,7 +178,7 @@
       {
         headline: ["Don’t overpay", "for a garage door."],
         sub: "Local Poole fitters. Straight quote. Free survey.",
-        caption: "Don’t overpay for a garage door. From £1,250.\n\nLocal Poole fitters. Straight quote. Free survey. No hard sell.\n\nCall 01202 553603 · WhatsApp 07534 066813\nFamily-run in Poole since 2014.\n\n#FreeSurvey #GarageDoorFitters #Poole #Bournemouth #Dorset #OnARollGarageDoors"
+        caption: "Local Poole fitters. Straight quote. Free survey. No hard sell. From £1,250.\n\nCall 01202 553603 · WhatsApp 07534 066813\nFamily-run in Poole since 2014.\n\n#FreeSurvey #GarageDoorFitters #Poole #Bournemouth #Dorset #OnARollGarageDoors"
       },
       {
         headline: ["Local fitters.", "Honest price."],
@@ -260,26 +260,23 @@
 
     const [bg, logo] = await Promise.all([loadImage(slot.bg), loadImage(logoUrl)]);
 
-    // cover bg
     const scale = Math.max(W / bg.width, H / bg.height);
     const bw = bg.width * scale, bh = bg.height * scale;
     ctx.drawImage(bg, (W - bw) / 2, (H - bh) / 2, bw, bh);
 
-    // gradient
     const g = ctx.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, "rgba(10,15,20,0.28)");
     g.addColorStop(0.3, "rgba(10,15,20,0)");
     g.addColorStop(0.52, "rgba(10,15,20,0.12)");
-    g.addColorStop(0.76, "rgba(10,15,20,0.78)");
-    g.addColorStop(1, "rgba(10,15,20,0.94)");
+    g.addColorStop(0.72, "rgba(10,15,20,0.72)");
+    g.addColorStop(1, "rgba(10,15,20,0.95)");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
 
-    // logo circle
+    // logo
     ctx.save();
     ctx.beginPath();
-    ctx.arc(44 + 52, 44 + 52, 52, 0, Math.PI * 2);
-    ctx.closePath();
+    ctx.arc(96, 96, 52, 0, Math.PI * 2);
     ctx.fillStyle = "#fff";
     ctx.shadowColor = "rgba(0,0,0,0.28)";
     ctx.shadowBlur = 18;
@@ -287,55 +284,101 @@
     ctx.restore();
     ctx.save();
     ctx.beginPath();
-    ctx.arc(44 + 52, 44 + 52, 47, 0, Math.PI * 2);
+    ctx.arc(96, 96, 47, 0, Math.PI * 2);
     ctx.clip();
-    ctx.drawImage(logo, 44 + 5, 44 + 5, 94, 94);
+    ctx.drawImage(logo, 49, 49, 94, 94);
     ctx.restore();
 
-    // price pill
-    const price = "FROM  £1,250";
+    // price pill — measure properly
     ctx.font = "700 20px Helvetica, Arial, sans-serif";
-    const pw = ctx.measureText(price).width + 48;
-    const px = W - 44 - pw, py = 58;
-    roundRect(ctx, px, py, pw, 52, 26);
+    const priceLeft = "FROM ";
+    const priceRight = "£1,250";
+    const priceW = ctx.measureText(priceLeft).width + ctx.measureText(priceRight).width + 48;
+    const priceX = W - 44 - priceW, priceY = 58;
+    roundRect(ctx, priceX, priceY, priceW, 52, 26);
     ctx.fillStyle = "#fff";
     ctx.fill();
-    ctx.fillStyle = "#0a0f14";
     ctx.font = "700 18px Helvetica, Arial, sans-serif";
-    ctx.fillText("FROM  ", px + 24, py + 33);
-    const fromW = ctx.measureText("FROM  ").width;
+    ctx.fillStyle = "#0a0f14";
+    ctx.fillText(priceLeft, priceX + 24, priceY + 33);
     ctx.fillStyle = "#009edf";
-    ctx.fillText("£1,250", px + 24 + fromW, py + 33);
+    ctx.fillText(priceRight, priceX + 24 + ctx.measureText(priceLeft).width, priceY + 33);
 
-    // copy block
-    let y = H - 280;
+    // headline — fit to width, keep inside safe box
+    const left = 52;
+    const maxTextW = W - 104;
+    const bottomSafe = 72;
+    let lines = variant.headline.slice();
+    let fontSize = 74;
+    ctx.font = `700 ${fontSize}px Helvetica, Arial, sans-serif`;
+    // shrink until every line fits
+    while (fontSize > 44) {
+      ctx.font = `700 ${fontSize}px Helvetica, Arial, sans-serif`;
+      const tooWide = lines.some(line => ctx.measureText(line).width > maxTextW);
+      if (!tooWide) break;
+      fontSize -= 2;
+    }
+    // if a single long line still overflows, split it
+    const fitted = [];
+    for (const line of lines) {
+      if (ctx.measureText(line).width <= maxTextW) {
+        fitted.push(line);
+      } else {
+        const words = line.split(" ");
+        let cur = "";
+        for (const word of words) {
+          const trial = cur ? cur + " " + word : word;
+          if (ctx.measureText(trial).width > maxTextW && cur) {
+            fitted.push(cur);
+            cur = word;
+          } else cur = trial;
+        }
+        if (cur) fitted.push(cur);
+      }
+    }
+    lines = fitted;
+
+    const lineH = Math.round(fontSize * 1.05);
+    const subH = 34;
+    const subLines = Math.ceil(ctx.measureText(variant.sub).width / maxTextW) || 1;
+    // rough sub line count
+    ctx.font = "500 26px Helvetica, Arial, sans-serif";
+    let subCount = 1, subCur = "";
+    for (const word of variant.sub.split(" ")) {
+      const trial = subCur ? subCur + " " + word : word;
+      if (ctx.measureText(trial).width > maxTextW && subCur) { subCount++; subCur = word; }
+      else subCur = trial;
+    }
+    const blockH = 4 + 28 + lines.length * lineH + 18 + subCount * subH + 40;
+    let y = H - bottomSafe - blockH;
+
     ctx.fillStyle = "#009edf";
-    ctx.fillRect(52, y, 52, 4);
-    y += 36;
+    ctx.fillRect(left, y, 52, 4);
+    y += 28 + fontSize;
 
     ctx.fillStyle = "#fff";
-    ctx.font = "700 72px Helvetica, Arial, sans-serif";
+    ctx.font = `700 ${fontSize}px Helvetica, Arial, sans-serif`;
     ctx.shadowColor = "rgba(0,0,0,0.35)";
-    ctx.shadowBlur = 16;
-    for (const line of variant.headline) {
-      ctx.fillText(line, 52, y);
-      y += 78;
+    ctx.shadowBlur = 14;
+    for (const line of lines) {
+      ctx.fillText(line, left, y);
+      y += lineH;
     }
     ctx.shadowBlur = 0;
 
-    y += 8;
+    y += 14;
     ctx.font = "500 26px Helvetica, Arial, sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.92)";
-    wrapText(ctx, variant.sub, 52, y, W - 104, 34);
+    wrapText(ctx, variant.sub, left, y, maxTextW, subH);
 
-    y = H - 78;
+    y = H - 64;
     ctx.beginPath();
-    ctx.arc(58, y - 6, 5, 0, Math.PI * 2);
+    ctx.arc(left + 6, y - 6, 5, 0, Math.PI * 2);
     ctx.fillStyle = "#009edf";
     ctx.fill();
     ctx.fillStyle = "#fff";
     ctx.font = "700 22px Helvetica, Arial, sans-serif";
-    ctx.fillText("Free survey · 01202 553603", 74, y);
+    ctx.fillText("Free survey · 01202 553603", left + 22, y);
 
     return canvas.toDataURL("image/jpeg", 0.92);
   }
