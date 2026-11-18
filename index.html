@@ -253,7 +253,7 @@
     .fb-more{margin-left:auto; color:#65676b; font-size:20px; font-weight:700; padding:0 4px}
     .fb-caption{
       padding:2px 14px 12px; font-size:15px; line-height:1.45; white-space:pre-wrap; color:#1c1e21;
-      display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical; overflow:hidden;
+      overflow:visible;
     }
     .fb-media{background:#0a0f14; position:relative; overflow:hidden}
     .fb-media .stage{width:100%; position:relative; padding-top:125%}
@@ -367,9 +367,6 @@
     .fb.editing .fb-stats,
     .fb.editing .fb-actions-row,
     .fb.editing .controls{display:none}
-    .fb.editing .fb-caption{
-      display:-webkit-box; /* still show live caption while editing */
-    }
     .inline-edit{
       padding:1rem 1rem 1.15rem; border-top:1px solid var(--line); background:#f5f8fb;
       animation:rise .22s cubic-bezier(.2,.8,.2,1) both;
@@ -437,7 +434,7 @@
   <header>
     <div class="row">
       <div>
-        <h1>This week’s posts <span class="pill" id="verPill">v30</span></h1>
+        <h1>This week’s posts <span class="pill" id="verPill">v31</span></h1>
         <p>Tap <strong>Approve</strong> on each post — or Edit / Change if you want a tweak. Nothing goes live until Pete publishes.</p>
       </div>
     </div>
