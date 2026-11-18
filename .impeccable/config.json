@@ -6,7 +6,8 @@
       {
         "rule": "overused-font",
         "value": "helvetica",
-        "createdAt": "2026-11-18T19:33:30.554Z"
+        "createdAt": "2026-11-18T19:33:30.554Z",
+        "reason": "On A Roll board + archive: Helvetica/Arial match Facebook chrome and existing brand lock"
       }
     ]
   }
