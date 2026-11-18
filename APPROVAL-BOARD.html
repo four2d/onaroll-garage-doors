@@ -4,51 +4,129 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <title>On A Roll — Magazine posts for approval</title>
+  <title>On A Roll — Posts for approval</title>
   <style>
-    :root{--ink:#0b1c28;--muted:#3a4652;--line:#cfd8e1;--paper:#eef2f5;--card:#ffffff;--blue:#009edf}
-    *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;background:var(--paper);color:var(--ink);line-height:1.45}
-    .banner{background:#0077a8;color:#fff;text-align:center;padding:.7rem 1rem;font-weight:700;font-size:.95rem}
-    header{background:var(--ink);color:#fff;padding:2rem 1.4rem 1.7rem}
-    .eyebrow{letter-spacing:.14em;text-transform:uppercase;font-size:.7rem;opacity:.85;margin:0 0 .55rem;color:#d7eaf5}
-    h1{margin:0;font-size:clamp(1.55rem,3vw,2rem);font-weight:720;letter-spacing:-.02em}
-    header p{margin:.7rem 0 0;max-width:42rem;opacity:.9}
-    .wrap{max-width:1120px;margin:0 auto;padding:1.4rem}
-    h2{font-size:1.15rem;margin:1.8rem 0 .9rem}
-    .grid{display:grid;gap:1rem}
-    @media(min-width:900px){.grid-3{grid-template-columns:repeat(3,1fr)}}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.04)}
-    .card img{width:100%;display:block}
-    .pad{padding:.9rem 1rem 1.05rem}
-    .id{font-size:.75rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-    .fb{background:#e4ebf1;border-radius:16px;padding:.85rem;border:1px solid var(--line)}
-    .fb img{width:100%;border-radius:10px;display:block;box-shadow:0 6px 18px rgba(0,0,0,.08)}
-    .note{color:var(--muted);font-size:.88rem;margin:.55rem 0 0}
-    footer{margin:2rem 0 3rem;color:var(--muted);font-size:.9rem}
-    a{color:#0077a8}
+    :root{--ink:#0b1c28;--muted:#3a4652;--line:#cfd8e1;--paper:#eef2f5;--card:#fff;--blue:#009edf;--blue-dark:#0077a8}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;background:var(--paper);color:var(--ink);line-height:1.45}
+    .banner{background:var(--blue-dark);color:#fff;text-align:center;padding:.75rem 1rem;font-weight:700}
+    header{background:var(--ink);color:#fff;padding:2.2rem 1.4rem 1.9rem}
+    .eyebrow{letter-spacing:.14em;text-transform:uppercase;font-size:.72rem;color:#d7eaf5;margin:0 0 .55rem;opacity:.9}
+    h1{margin:0;font-size:clamp(1.7rem,3.2vw,2.3rem);font-weight:750;letter-spacing:-.02em}
+    header p{margin:.75rem 0 0;max-width:40rem;opacity:.92;font-size:1.02rem}
+    .wrap{max-width:760px;margin:0 auto;padding:1.5rem 1.1rem 3rem}
+    .stack{display:flex;flex-direction:column;gap:2rem}
+    .post{background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 12px 36px rgba(11,28,40,.06)}
+    .post .creative{width:100%;display:block;background:#111}
+    .body{padding:1.25rem 1.3rem 1.4rem}
+    .meta{display:flex;justify-content:space-between;gap:.75rem;align-items:flex-start;flex-wrap:wrap;margin-bottom:.55rem}
+    .id{font-size:.78rem;font-weight:750;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+    .status{font-size:.7rem;font-weight:750;letter-spacing:.06em;text-transform:uppercase;color:#9a6b00;background:#fff7e6;border:1px solid #f0d9a0;border-radius:999px;padding:.28rem .7rem}
+    h2{margin:0 0 .35rem;font-size:1.45rem;letter-spacing:-.02em}
+    .blurb{margin:0 0 1rem;color:var(--muted)}
+    .section{font-size:.72rem;font-weight:750;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:1rem 0 .45rem}
+    pre{margin:0;white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:.9rem;line-height:1.4;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:1rem 1.05rem}
+    .fb-wrap{margin-top:1.1rem;background:#e4ebf1;border-radius:16px;padding:1rem;border:1px solid var(--line)}
+    .fb-wrap img{width:100%;max-width:520px;display:block;margin:0 auto;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.08)}
+    .fb-label{text-align:center;margin:.7rem 0 0;color:var(--muted);font-size:.88rem}
+    footer{margin-top:2.2rem;color:var(--muted);font-size:.92rem}
+    a{color:var(--blue-dark)}
   </style>
 </head>
 <body>
-  <div class="banner">MAGAZINE STYLE — Punchier creatives + Facebook previews</div>
+  <div class="banner">Modern locked style · bigger stacked posts · GitHub only (no PDF)</div>
   <header>
     <p class="eyebrow">On A Roll Garage Doors</p>
-    <h1>Magazine-style posts for your OK</h1>
-    <p>Hi Jon — bold editorial creatives (logo + From £1,250). Section 2 shows how each should look on Facebook. Reply Approve / Edit / Reject.</p>
+    <h1>Posts for your OK</h1>
+    <p>Hi Jon — scroll the stack. Each post shows the image we’d upload, the caption, and a Facebook preview. Reply Approve / Edit / Reject.</p>
   </header>
+
   <div class="wrap">
-    <h2>1 · Magazine creatives</h2>
-    <div class="grid grid-3">
-      <div class="card"><img src="mag-001.jpg" alt=""><div class="pad"><div class="id">OAR-SM-001 · Mon</div><strong>That door has had its day.</strong><p class="note">From £1,250 · Free survey</p></div></div>
-      <div class="card"><img src="mag-002.jpg" alt=""><div class="pad"><div class="id">OAR-SM-002 · Wed</div><strong>Thieves check the garage first.</strong><p class="note">From £1,250 · Security</p></div></div>
-      <div class="card"><img src="mag-003.jpg" alt=""><div class="pad"><div class="id">OAR-SM-003 · Fri</div><strong>A better door. A fair price.</strong><p class="note">From £1,250 · Local / honest</p></div></div>
+    <div class="stack">
+
+      <article class="post">
+        <img class="creative" src="post-001.jpg" alt="Stop living with that door" />
+        <div class="body">
+          <div class="meta">
+            <div class="id">OAR-SM-001 · Monday</div>
+            <span class="status">Awaiting approval</span>
+          </div>
+          <h2>Stop living with that door.</h2>
+          <p class="blurb">From £1,250 · Free survey</p>
+          <p class="section">Caption</p>
+          <pre>Stop living with that door — from £1,250.
+
+Made-to-measure aluminium rollers fitted across Poole, Bournemouth, Christchurch and Dorset. Tidy half-day install.
+
+Free survey → 01202 553603 · WhatsApp 07534 066813
+onarollgaragedoors.co.uk
+
+On A Roll Garage Doors — family-run in Poole since 2014.
+
+#OnARollGarageDoors #GarageDoors #RollerGarageDoor #GarageDoorInstallation #Poole #Bournemouth #Christchurch #Dorset #LocalBusiness #HomeImprovement #ElectricGarageDoor #MadeToMeasure #FamilyRun #FreeSurvey</pre>
+          <div class="fb-wrap">
+            <img src="fb-001.jpg" alt="Facebook preview 001" />
+            <p class="fb-label">Facebook preview</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="post">
+        <img class="creative" src="post-002.jpg" alt="Your garage is an open invite" />
+        <div class="body">
+          <div class="meta">
+            <div class="id">OAR-SM-002 · Wednesday</div>
+            <span class="status">Awaiting approval</span>
+          </div>
+          <h2>Your garage is an open invite.</h2>
+          <p class="blurb">From £1,250 · Security</p>
+          <p class="section">Caption</p>
+          <pre>Your garage is an open invite. From £1,250.
+
+Electric rollers lock into the guides — no handle for thieves to force.
+
+Send a photo for straight advice → 01202 553603 · WhatsApp 07534 066813
+
+On A Roll Garage Doors · Poole
+
+#GarageDoorSecurity #HomeSecurity #RollerGarageDoor #GarageDoors #Poole #Bournemouth #Christchurch #Dorset #ElectricGarageDoor #LocalTrades #OnARollGarageDoors</pre>
+          <div class="fb-wrap">
+            <img src="fb-002.jpg" alt="Facebook preview 002" />
+            <p class="fb-label">Facebook preview</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="post">
+        <img class="creative" src="post-003.jpg" alt="Don’t overpay for a garage door" />
+        <div class="body">
+          <div class="meta">
+            <div class="id">OAR-SM-003 · Friday</div>
+            <span class="status">Awaiting approval</span>
+          </div>
+          <h2>Don’t overpay for a garage door.</h2>
+          <p class="blurb">From £1,250 · Local fitters</p>
+          <p class="section">Caption</p>
+          <pre>Don’t overpay for a garage door. From £1,250.
+
+Local Poole fitters. Straight quote. Free survey. No hard sell.
+
+Call 01202 553603 · WhatsApp 07534 066813
+Family-run in Poole since 2014.
+
+#FreeSurvey #GarageDoorFitters #GarageDoorsPoole #Bournemouth #Christchurch #Dorset #OnARollGarageDoors #FamilyRun</pre>
+          <div class="fb-wrap">
+            <img src="fb-003.jpg" alt="Facebook preview 003" />
+            <p class="fb-label">Facebook preview</p>
+          </div>
+        </div>
+      </article>
+
     </div>
-    <h2>2 · Facebook feed simulation</h2>
-    <div class="grid grid-3">
-      <div class="fb"><img src="fb-mag-001.jpg" alt=""><p class="note">Facebook preview · 001</p></div>
-      <div class="fb"><img src="fb-mag-002.jpg" alt=""><p class="note">Facebook preview · 002</p></div>
-      <div class="fb"><img src="fb-mag-003.jpg" alt=""><p class="note">Facebook preview · 003</p></div>
-    </div>
-    <footer>Repo: <a href="https://github.com/four2d/onaroll-garage-doors">github.com/four2d/onaroll-garage-doors</a></footer>
+    <footer>
+      Message Pete: <strong>001 approve · 002 edit · 003 approve</strong><br>
+      <a href="https://four2d.github.io/onaroll-garage-doors/">four2d.github.io/onaroll-garage-doors</a>
+    </footer>
   </div>
 </body>
 </html>
