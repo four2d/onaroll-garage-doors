@@ -126,7 +126,7 @@
   </div>
 
   <script>
-  const KEY = "oar-jon-board-v5";
+  const KEY = "oar-jon-board-v6";
   const PAGE = "On A Roll Garage Doors";
 
   const SUGGESTIONS = {
@@ -199,9 +199,9 @@
   };
 
   const SLOTS = [
-    { id: "001", day: "Monday", bg: "bg-001.jpg", time: "Just now" },
-    { id: "002", day: "Wednesday", bg: "bg-002.jpg", time: "2h" },
-    { id: "003", day: "Friday", bg: "bg-003.jpg", time: "Yesterday at 09:12" }
+    { id: "001", day: "Monday", bg: "bg-001.jpg", starter: "start-001.jpg", time: "Just now" },
+    { id: "002", day: "Wednesday", bg: "bg-002.jpg", starter: "start-002.jpg", time: "2h" },
+    { id: "003", day: "Friday", bg: "bg-003.jpg", starter: "start-003.jpg", time: "Yesterday at 09:12" }
   ];
 
   const logoUrl = "logo.jpg";
@@ -306,10 +306,10 @@
 
     // headline — fit to width, keep inside safe box
     const left = 52;
-    const maxTextW = W - 104;
+    const maxTextW = W - 124;
     const bottomSafe = 72;
     let lines = variant.headline.slice();
-    let fontSize = 72;
+    let fontSize = 68;
     // Shrink type until each authored line fits — never break a line mid-phrase
     while (fontSize > 40) {
       ctx.font = `700 ${fontSize}px Helvetica, Arial, sans-serif`;
@@ -456,8 +456,14 @@
   async function ensureImages(state) {
     for (const slot of SLOTS) {
       const item = state[slot.id];
+      // Variant 0 uses the polished starter JPG (Pete-approved style).
+      // Change / later variants use canvas generation.
       if (!item.imageDataUrl) {
-        item.imageDataUrl = await renderCreative(slot.id, item.variant || 0);
+        if ((item.variant || 0) === 0 && slot.starter) {
+          item.imageDataUrl = slot.starter;
+        } else {
+          item.imageDataUrl = await renderCreative(slot.id, item.variant || 0);
+        }
       }
     }
     saveState(state);
