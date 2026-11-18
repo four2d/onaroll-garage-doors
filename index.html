@@ -126,7 +126,7 @@
   </div>
 
   <script>
-  const KEY = "oar-jon-board-v4";
+  const KEY = "oar-jon-board-v5";
   const PAGE = "On A Roll Garage Doors";
 
   const SUGGESTIONS = {
@@ -309,34 +309,15 @@
     const maxTextW = W - 104;
     const bottomSafe = 72;
     let lines = variant.headline.slice();
-    let fontSize = 74;
-    ctx.font = `700 ${fontSize}px Helvetica, Arial, sans-serif`;
-    // shrink until every line fits
-    while (fontSize > 44) {
+    let fontSize = 72;
+    // Shrink type until each authored line fits — never break a line mid-phrase
+    while (fontSize > 40) {
       ctx.font = `700 ${fontSize}px Helvetica, Arial, sans-serif`;
       const tooWide = lines.some(line => ctx.measureText(line).width > maxTextW);
       if (!tooWide) break;
       fontSize -= 2;
     }
-    // if a single long line still overflows, split it
-    const fitted = [];
-    for (const line of lines) {
-      if (ctx.measureText(line).width <= maxTextW) {
-        fitted.push(line);
-      } else {
-        const words = line.split(" ");
-        let cur = "";
-        for (const word of words) {
-          const trial = cur ? cur + " " + word : word;
-          if (ctx.measureText(trial).width > maxTextW && cur) {
-            fitted.push(cur);
-            cur = word;
-          } else cur = trial;
-        }
-        if (cur) fitted.push(cur);
-      }
-    }
-    lines = fitted;
+    ctx.font = `700 ${fontSize}px Helvetica, Arial, sans-serif`;
 
     const lineH = Math.round(fontSize * 1.05);
     const subH = 34;
