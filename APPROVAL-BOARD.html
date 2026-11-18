@@ -296,6 +296,13 @@
     }
     .fb .btn-select{background:#3a4652}
 
+    .editor-chrome[hidden]{display:none !important}
+    .editor-chrome{margin-bottom:1.75rem}
+    .editor-chrome.open{display:block}
+    .studio{margin-bottom:0}
+    .studio-head .head-actions{display:flex; flex-wrap:wrap; gap:.5rem; align-items:center}
+
+
     .sr-only{
       position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
       clip:rect(0,0,0,0); white-space:nowrap; border:0;
@@ -306,77 +313,82 @@
   <header>
     <div class="row">
       <div>
-        <h1>This week’s posts <span class="pill" id="verPill">v21</span></h1>
-        <p>Pick a day, shape the post, download when it’s ready. Jon approves the same three posts below. Nothing goes live until Pete publishes.</p>
+        <h1>This week’s posts <span class="pill" id="verPill">v22</span></h1>
+        <p>Approve as-is, edit any part of a post, or change to a new suggestion. Nothing goes live until Pete publishes.</p>
       </div>
     </div>
   </header>
 
   <div class="wrap">
-    <div class="day-tabs" id="dayTabs" role="tablist" aria-label="Post day"></div>
+    <div class="editor-chrome" id="editorChrome" hidden>
+      <div class="day-tabs" id="dayTabs" role="tablist" aria-label="Post day"></div>
 
-    <section class="studio" id="studio" aria-label="Edit selected post">
-      <div class="studio-head">
-        <div>
-          <h2 id="studioTitle">Monday</h2>
-          <p class="sub" id="studioSub">Editing this day’s Facebook &amp; Instagram post — saved as you type</p>
-        </div>
-      </div>
-      <div class="studio-grid">
-        <div class="studio-form">
-          <div class="field">
-            <label>Photo</label>
-            <div class="photos" id="photoRow"></div>
-            <p class="hint">Stock shot or upload a real install photo.</p>
+      <section class="studio" id="studio" aria-label="Edit post">
+        <div class="studio-head">
+          <div>
+            <h2 id="studioTitle">Monday</h2>
+            <p class="sub" id="studioSub">Change photo, headline, caption — saves as you type</p>
           </div>
-          <div class="pair">
+          <div class="head-actions">
+            <button type="button" class="btn-ghost" id="btnDone" style="appearance:none;border:0;cursor:pointer;font:inherit;font-weight:750;font-size:.88rem;padding:.72rem 1rem;border-radius:10px;color:#fff;background:#5c6670;box-shadow:0 3px 10px rgba(11,28,40,.14)">Done</button>
+          </div>
+        </div>
+        <div class="studio-grid">
+          <div class="studio-form">
             <div class="field">
-              <label for="line1">Headline line 1</label>
-              <input id="line1" type="text" maxlength="42" autocomplete="off" />
+              <label>Photo</label>
+              <div class="photos" id="photoRow"></div>
+              <p class="hint">Stock shot or upload a real install photo.</p>
+            </div>
+            <div class="pair">
+              <div class="field">
+                <label for="line1">Headline line 1</label>
+                <input id="line1" type="text" maxlength="42" autocomplete="off" />
+              </div>
+              <div class="field">
+                <label for="line2">Headline line 2</label>
+                <input id="line2" type="text" maxlength="42" autocomplete="off" />
+              </div>
             </div>
             <div class="field">
-              <label for="line2">Headline line 2</label>
-              <input id="line2" type="text" maxlength="42" autocomplete="off" />
+              <label for="sub">Subline</label>
+              <input id="sub" type="text" maxlength="110" autocomplete="off" />
             </div>
-          </div>
-          <div class="field">
-            <label for="sub">Subline</label>
-            <input id="sub" type="text" maxlength="110" autocomplete="off" />
-          </div>
-          <div class="field">
-            <label for="cta">CTA on image</label>
-            <input id="cta" type="text" maxlength="60" value="Free survey · 01202 553603" autocomplete="off" />
-          </div>
-          <div class="field">
-            <label for="caption">Caption (FB &amp; IG)</label>
-            <textarea id="caption" maxlength="2200"></textarea>
-            <p class="hint"><button type="button" class="pack" id="btnCaption" style="margin:0">Rebuild caption from headline</button></p>
-          </div>
-          <div class="studio-actions">
-            <button type="button" class="btn-warn" id="btnIdea">Try another idea</button>
-            <button type="button" class="btn-dl" id="btnDownload">Download FB + IG</button>
-            <button type="button" class="btn-ghost" id="btnCopy">Copy caption</button>
-          </div>
-          <p class="status-line" id="studioStatus" role="status"></p>
-        </div>
-        <div class="studio-preview">
-          <div class="preview-row">
-            <div class="preview-col">
-              <div class="tag">Facebook · 1080×1350</div>
-              <div class="preview-frame fb"><div class="stage" id="prevFb"></div></div>
+            <div class="field">
+              <label for="cta">CTA on image</label>
+              <input id="cta" type="text" maxlength="60" value="Free survey · 01202 553603" autocomplete="off" />
             </div>
-            <div class="preview-col">
-              <div class="tag">Instagram · 1080×1080</div>
-              <div class="preview-frame ig"><div class="stage" id="prevIg"></div></div>
+            <div class="field">
+              <label for="caption">Caption (FB &amp; IG)</label>
+              <textarea id="caption" maxlength="2200"></textarea>
+              <p class="hint"><button type="button" class="pack" id="btnCaption" style="margin:0">Rebuild caption from headline</button></p>
+            </div>
+            <div class="studio-actions">
+              <button type="button" class="btn-primary" id="btnDone2">Done</button>
+              <button type="button" class="btn-dl" id="btnDownload">Download FB + IG</button>
+              <button type="button" class="btn-ghost" id="btnCopy">Copy caption</button>
+            </div>
+            <p class="status-line" id="studioStatus" role="status"></p>
+          </div>
+          <div class="studio-preview">
+            <div class="preview-row">
+              <div class="preview-col">
+                <div class="tag">Facebook · 1080×1350</div>
+                <div class="preview-frame fb"><div class="stage" id="prevFb"></div></div>
+              </div>
+              <div class="preview-col">
+                <div class="tag">Instagram · 1080×1080</div>
+                <div class="preview-frame ig"><div class="stage" id="prevIg"></div></div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
 
     <div class="board-head">
-      <h2>Jon’s approvals</h2>
-      <p>Same three posts. Approve, tweak the caption, or ask for another idea.</p>
+      <h2>Review</h2>
+      <p>Approve · Edit · Change</p>
     </div>
     <div class="stack" id="stack"></div>
   </div>
@@ -387,7 +399,7 @@
   </div>
 
   <script>
-  const KEY = "oar-jon-board-v21";
+  const KEY = "oar-jon-board-v22";
   const PAGE = "On A Roll Garage Doors";
   const LOGO = "logo.jpg";
   const PRICE = "From £1,250";
@@ -438,6 +450,7 @@
   const uploadCache = {}; // id -> dataURL
   const bakeCache = new Map(); // key -> {fb, ig}
   let selectedId = "001";
+  let editorOpen = false;
   let saveTimer = null;
   let quiet = false; // suppress status while loading a day
 
@@ -815,7 +828,21 @@
     setStudioStatus(`Editing ${dayName(selectedId)}…`);
   }
 
-  function selectDay(id, { scrollStudio = false } = {}) {
+  function setEditorOpen(open) {
+    editorOpen = open;
+    const chrome = document.getElementById("editorChrome");
+    if (open) {
+      chrome.hidden = false;
+      chrome.classList.add("open");
+    } else {
+      chrome.hidden = true;
+      chrome.classList.remove("open");
+    }
+    renderAll(ensureState());
+    renderDayTabs(ensureState());
+  }
+
+  function openEditor(id) {
     selectedId = id;
     const state = ensureState();
     const post = state[id];
@@ -823,10 +850,33 @@
     renderPhotoRow();
     fillFormFromPost(post);
     renderStudioPreview();
+    setEditorOpen(true);
+    setStudioStatus(`Editing ${dayName(id)} — change anything, then tap Done.`);
+    document.getElementById("editorChrome").scrollIntoView({ behavior: "smooth", block: "start" });
+    setTimeout(() => document.getElementById("line1").focus(), 320);
+  }
+
+  function closeEditor() {
+    commitSelected({ silent: true });
+    setEditorOpen(false);
+    const card = document.querySelector(`.fb[data-id="${selectedId}"]`);
+    if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function selectDay(id, { open = false } = {}) {
+    selectedId = id;
+    const state = ensureState();
+    const post = state[id];
+    document.getElementById("studioTitle").textContent = dayName(id);
+    if (editorOpen || open) {
+      renderPhotoRow();
+      fillFormFromPost(post);
+      renderStudioPreview();
+      setStudioStatus(`Editing ${dayName(id)} — change anything, then tap Done.`);
+    }
     renderDayTabs(state);
     renderAll(state);
-    setStudioStatus(`Editing ${dayName(id)}. Changes save to this day automatically.`);
-    if (scrollStudio) document.getElementById("studio").scrollIntoView({ behavior: "smooth", block: "start" });
+    if (open) setEditorOpen(true);
   }
 
   function renderDayTabs(state) {
@@ -839,7 +889,7 @@
       </button>`;
     }).join("");
     row.querySelectorAll("[data-day]").forEach(btn => {
-      btn.addEventListener("click", () => selectDay(btn.dataset.day));
+      btn.addEventListener("click", () => selectDay(btn.dataset.day, { open: true }));
     });
   }
 
@@ -960,13 +1010,11 @@
 
   function hintFor(status, selected) {
     if (status === "approved") return "Approved. Pete can download and publish.";
-    if (status === "editing") return "Edit the caption, then Save — that approves it.";
-    if (selected) return "You’re editing this day above. Approve here when Jon is happy.";
-    return "Approve, edit the caption, try another idea, or edit this day.";
+    if (editorOpen && selected) return "You’re editing this post above — tap Done when finished.";
+    return "Approve as-is, Edit any part, or Change for a whole new suggestion.";
   }
 
   function cardHTML(slot, item) {
-    const editing = item.status === "editing";
     const selected = slot.id === selectedId;
     return `
       <article class="fb${selected ? " selected" : ""}" data-id="${slot.id}">
@@ -978,10 +1026,7 @@
           </div>
           <div class="fb-more">...</div>
         </div>
-        <div class="fb-caption ${editing ? "hide" : ""}" data-caption>${escapeHTML(item.caption)}</div>
-        <div class="edit-box ${editing ? "open" : ""}">
-          <textarea data-editor>${escapeHTML(item.caption)}</textarea>
-        </div>
+        <div class="fb-caption" data-caption>${escapeHTML(item.caption)}</div>
         <div class="fb-media">
           <div class="stage" data-stage>${creativeHTML(item, "fb")}</div>
         </div>
@@ -997,15 +1042,9 @@
             <div data-badge>${badgeHTML(item.status)}</div>
           </div>
           <div class="btns" data-btns>
-            ${editing ? `
-              <button type="button" class="btn-save" data-action="save">Save caption</button>
-              <button type="button" class="btn-cancel" data-action="cancel-edit">Cancel</button>
-            ` : `
-              <button type="button" class="btn-approve" data-action="approve">Approve</button>
-              <button type="button" class="btn-edit" data-action="edit">Edit caption</button>
-              <button type="button" class="btn-change" data-action="change">Try another idea</button>
-              <button type="button" class="btn-select" data-action="select">Edit this day</button>
-            `}
+              <button type="button" class="btn-approve" data-action="approve"${editorOpen && selected ? " disabled" : ""}>Approve</button>
+              <button type="button" class="btn-edit" data-action="edit">${editorOpen && selected ? "Editing…" : "Edit"}</button>
+              <button type="button" class="btn-change" data-action="change">Change</button>
           </div>
           <p class="hint" data-hint>${hintFor(item.status, selected)}</p>
         </div>
@@ -1034,31 +1073,20 @@
       card.querySelectorAll("[data-action]").forEach(btn => {
         btn.addEventListener("click", async () => {
           const action = btn.dataset.action;
-          if (action === "select") {
-            selectDay(id, { scrollStudio: true });
-            return;
-          }
           if (action === "approve") {
+            if (editorOpen) commitSelected({ silent: true });
             state[id].status = "approved";
             state[id].caption = card.querySelector("[data-caption]").textContent;
-            saveState(state); renderAll(state); renderDayTabs(state);
+            // if approving while editor open for another day, use stored caption
+            if (editorOpen && id === selectedId) {
+              state[id].caption = document.getElementById("caption").value;
+            }
+            saveState(state);
+            if (editorOpen && id === selectedId) closeEditor();
+            else { renderAll(state); renderDayTabs(state); }
           }
           if (action === "edit") {
-            state[id].status = "editing";
-            saveState(state); renderAll(state); renderDayTabs(state);
-            const ta = document.querySelector(`.fb[data-id="${id}"] [data-editor]`);
-            if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
-          }
-          if (action === "save") {
-            const ta = card.querySelector("[data-editor]");
-            state[id].caption = ta.value.trim();
-            state[id].status = "approved";
-            saveState(state); renderAll(state); renderDayTabs(state);
-            if (id === selectedId) fillFormFromPost(state[id]);
-          }
-          if (action === "cancel-edit") {
-            state[id].status = "awaiting";
-            saveState(state); renderAll(state); renderDayTabs(state);
+            openEditor(id);
           }
           if (action === "change") {
             const list = SUGGESTIONS[id];
@@ -1074,7 +1102,7 @@
             state[id].caption = buildCaption(s, id);
             state[id].status = "awaiting";
             saveState(state);
-            if (id === selectedId) {
+            if (editorOpen && id === selectedId) {
               fillFormFromPost(state[id]);
               renderPhotoRow();
               document.querySelectorAll(".photo-pick[data-photo]").forEach(b => {
@@ -1085,7 +1113,7 @@
             renderAll(state);
             renderDayTabs(state);
             const hint = document.querySelector(`.fb[data-id="${id}"] [data-hint]`);
-            if (hint) hint.textContent = "New idea loaded.";
+            if (hint) hint.textContent = "New suggestion loaded.";
           }
         });
       });
@@ -1156,7 +1184,15 @@
     const state = ensureState();
     if (state._uploads) Object.assign(uploadCache, state._uploads);
 
-    selectDay("001");
+    selectedId = "001";
+    setEditorOpen(false);
+    renderDayTabs(state);
+    renderAll(state);
+    // warm form for first edit without showing chrome
+    renderPhotoRow();
+    fillFormFromPost(state["001"]);
+    renderStudioPreview();
+
     window.addEventListener("resize", () => scaleCardCreatives());
 
     ["line1","line2","sub","cta","caption"].forEach(id => {
@@ -1168,16 +1204,15 @@
       commitSelected();
       setStudioStatus("Caption rebuilt from headline + sub.", "ok");
     });
-    document.getElementById("btnIdea").addEventListener("click", tryAnotherIdea);
+    document.getElementById("btnDone").addEventListener("click", closeEditor);
+    document.getElementById("btnDone2").addEventListener("click", closeEditor);
     document.getElementById("btnDownload").addEventListener("click", downloadBoth);
     document.getElementById("btnCopy").addEventListener("click", copyCaption);
 
     try {
       await Promise.all([LOGO, ...PHOTOS.map(p => p.src)].map(loadImage));
-      setStudioStatus(`Editing ${dayName(selectedId)}. Changes save to this day automatically.`);
     } catch (err) {
       console.warn(err);
-      setStudioStatus("Loaded with limited assets. Uploads and text still work.");
     }
   })();
   </script>
