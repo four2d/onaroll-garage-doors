@@ -370,7 +370,7 @@
   <header>
     <div class="row">
       <div>
-        <h1>This week’s posts <span class="pill" id="verPill">v26</span></h1>
+        <h1>This week’s posts <span class="pill" id="verPill">v27</span></h1>
         <p>Three posts for Jon to review. Approve, edit, or change — nothing goes live until Pete publishes.</p>
       </div>
     </div>
@@ -901,6 +901,45 @@
     window.scrollTo({ top: y, left: 0, behavior: "auto" });
   }
 
+  let scrollAnim = null;
+  function slowSmoothScrollTo(y, duration = 1100) {
+    if (scrollAnim) cancelAnimationFrame(scrollAnim);
+    const start = window.scrollY;
+    const dist = y - start;
+    if (Math.abs(dist) < 2) return;
+    const t0 = performance.now();
+    // ease-in-out cubic — slow, settled finish
+    const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+    const step = now => {
+      const t = Math.min(1, (now - t0) / duration);
+      scrollInstant(start + dist * ease(t));
+      if (t < 1) scrollAnim = requestAnimationFrame(step);
+      else scrollAnim = null;
+    };
+    scrollAnim = requestAnimationFrame(step);
+  }
+
+  function nextSlotId(id) {
+    const i = SLOTS.findIndex(s => s.id === id);
+    if (i < 0 || i >= SLOTS.length - 1) return null;
+    return SLOTS[i + 1].id;
+  }
+
+  function scrollToNextAfterApprove(fromId) {
+    const nextId = nextSlotId(fromId);
+    if (!nextId) return; // final post — stay put
+    // Let the approved card re-render settle, then ease down to the next
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        const el = document.getElementById(`card-${nextId}`);
+        if (!el) return;
+        const top = el.getBoundingClientRect().top + window.scrollY;
+        const offset = 18; // a little air under the sticky week bar feel
+        slowSmoothScrollTo(Math.max(0, top - offset), 1200);
+      }, 80);
+    });
+  }
+
   function pinMedia(id, mediaTop, fallbackY) {
     const lock = () => {
       if (mediaTop != null) {
@@ -1273,6 +1312,7 @@
               saveState(state);
               renderWeekBar(state);
               renderAll(state);
+              scrollToNextAfterApprove(id);
               return;
             }
             state[id].status = "approved";
@@ -1280,6 +1320,7 @@
             saveState(state);
             renderAll(state);
             renderWeekBar(state);
+            scrollToNextAfterApprove(id);
           }
           if (action === "edit") {
             if (editorOpen && selectedId !== id) commitSelected({ silent: true });
