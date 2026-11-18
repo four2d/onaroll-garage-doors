@@ -276,6 +276,26 @@
       padding:.7rem 1rem; border-radius:10px; cursor:pointer;
     }
 
+
+    .day-tabs{display:flex; flex-wrap:wrap; gap:.45rem; margin:0 0 1rem}
+    .day-tab{
+      appearance:none; border:1.5px solid #c9d3dc; background:#fff; color:var(--ink);
+      font:inherit; font-size:.9rem; font-weight:750; padding:.65rem 1rem; border-radius:999px;
+      cursor:pointer;
+    }
+    .day-tab[aria-selected="true"]{
+      background:var(--ink); color:#fff; border-color:var(--ink);
+    }
+    .day-tab .mini{
+      display:block; font-size:11px; font-weight:650; opacity:.75; margin-top:.15rem;
+    }
+    .day-tab[aria-selected="true"] .mini{opacity:.85}
+    .fb.selected{
+      border-color:var(--blue-dark);
+      box-shadow:0 0 0 3px rgba(0,119,168,.22), 0 8px 28px rgba(11,28,40,.07);
+    }
+    .fb .btn-select{background:#3a4652}
+
     .sr-only{
       position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
       clip:rect(0,0,0,0); white-space:nowrap; border:0;
@@ -286,27 +306,28 @@
   <header>
     <div class="row">
       <div>
-        <h1>Post studio <span class="pill" id="verPill">v20</span></h1>
-        <p>Make Facebook &amp; Instagram posts, then drop them onto the week for Jon to approve. Nothing goes live until Pete posts.</p>
+        <h1>This week’s posts <span class="pill" id="verPill">v21</span></h1>
+        <p>Pick a day, shape the post, download when it’s ready. Jon approves the same three posts below. Nothing goes live until Pete publishes.</p>
       </div>
     </div>
   </header>
 
   <div class="wrap">
-    <section class="studio" id="studio" aria-label="Post creator">
+    <div class="day-tabs" id="dayTabs" role="tablist" aria-label="Post day"></div>
+
+    <section class="studio" id="studio" aria-label="Edit selected post">
       <div class="studio-head">
         <div>
-          <h2>Create a post</h2>
-          <p class="sub">Live preview · FB 4:5 + IG 1:1 · downloads ready in one click</p>
+          <h2 id="studioTitle">Monday</h2>
+          <p class="sub" id="studioSub">Editing this day’s Facebook &amp; Instagram post — saved as you type</p>
         </div>
-        <div class="packs" id="packRow" aria-label="Suggestion packs"></div>
       </div>
       <div class="studio-grid">
         <div class="studio-form">
           <div class="field">
             <label>Photo</label>
             <div class="photos" id="photoRow"></div>
-            <p class="hint">Tap a stock shot or upload Jon’s install photo.</p>
+            <p class="hint">Stock shot or upload a real install photo.</p>
           </div>
           <div class="pair">
             <div class="field">
@@ -331,16 +352,8 @@
             <textarea id="caption" maxlength="2200"></textarea>
             <p class="hint"><button type="button" class="pack" id="btnCaption" style="margin:0">Rebuild caption from headline</button></p>
           </div>
-          <div class="field">
-            <label for="applySlot">Put on</label>
-            <select id="applySlot">
-              <option value="001">Monday · OAR-SM-001</option>
-              <option value="002">Wednesday · OAR-SM-002</option>
-              <option value="003">Friday · OAR-SM-003</option>
-            </select>
-          </div>
           <div class="studio-actions">
-            <button type="button" class="btn-primary" id="btnApply">Apply to week</button>
+            <button type="button" class="btn-warn" id="btnIdea">Try another idea</button>
             <button type="button" class="btn-dl" id="btnDownload">Download FB + IG</button>
             <button type="button" class="btn-ghost" id="btnCopy">Copy caption</button>
           </div>
@@ -362,8 +375,8 @@
     </section>
 
     <div class="board-head">
-      <h2>This week for Jon</h2>
-      <p>Approve · Edit caption · Change suggestion · or Open in studio</p>
+      <h2>Jon’s approvals</h2>
+      <p>Same three posts. Approve, tweak the caption, or ask for another idea.</p>
     </div>
     <div class="stack" id="stack"></div>
   </div>
@@ -374,7 +387,7 @@
   </div>
 
   <script>
-  const KEY = "oar-jon-board-v20";
+  const KEY = "oar-jon-board-v21";
   const PAGE = "On A Roll Garage Doors";
   const LOGO = "logo.jpg";
   const PRICE = "From £1,250";
@@ -424,16 +437,9 @@
   /* —— State —— */
   const uploadCache = {}; // id -> dataURL
   const bakeCache = new Map(); // key -> {fb, ig}
-  let studio = {
-    photo: "bg-001",
-    line1: SUGGESTIONS["001"][0].line1,
-    line2: SUGGESTIONS["001"][0].line2,
-    sub: SUGGESTIONS["001"][0].sub,
-    cta: DEFAULT_CTA,
-    caption: "",
-    applySlot: "001",
-    variant: 0
-  };
+  let selectedId = "001";
+  let saveTimer = null;
+  let quiet = false; // suppress status while loading a day
 
   function loadState() {
     try { return JSON.parse(localStorage.getItem(KEY) || "{}"); }
@@ -732,79 +738,156 @@
     el.className = "status-line" + (kind ? " " + kind : "");
   }
 
-  function readStudioForm() {
-    studio.line1 = document.getElementById("line1").value.trim();
-    studio.line2 = document.getElementById("line2").value.trim();
-    studio.sub = document.getElementById("sub").value.trim();
-    studio.cta = document.getElementById("cta").value.trim() || DEFAULT_CTA;
-    studio.caption = document.getElementById("caption").value;
-    studio.applySlot = document.getElementById("applySlot").value;
+  function dayName(id) {
+    return (SLOTS.find(s => s.id === id) || {}).day || id;
   }
 
-  function writeStudioForm() {
-    document.getElementById("line1").value = studio.line1;
-    document.getElementById("line2").value = studio.line2;
-    document.getElementById("sub").value = studio.sub;
-    document.getElementById("cta").value = studio.cta;
-    document.getElementById("caption").value = studio.caption;
-    document.getElementById("applySlot").value = studio.applySlot;
-    document.querySelectorAll(".photo-pick[data-photo]").forEach(btn => {
-      btn.setAttribute("aria-pressed", btn.dataset.photo === studio.photo ? "true" : "false");
-    });
-  }
-
-  function studioPost() {
-    readStudioForm();
+  function currentPostFromForm() {
+    const state = ensureState();
+    const existing = state[selectedId] || defaultPost(selectedId);
+    const pressed = document.querySelector(".photo-pick[aria-pressed='true']");
+    const photo = pressed?.dataset.photo || existing.photo;
+    const isUpload = String(photo).startsWith("up-");
     return {
-      photo: studio.photo,
-      customPhoto: studio.customPhoto || null,
-      line1: studio.line1,
-      line2: studio.line2,
-      sub: studio.sub,
-      cta: studio.cta,
-      caption: studio.caption,
-      status: "awaiting",
-      variant: studio.variant || 0
+      ...existing,
+      line1: document.getElementById("line1").value.trim(),
+      line2: document.getElementById("line2").value.trim(),
+      sub: document.getElementById("sub").value.trim(),
+      cta: document.getElementById("cta").value.trim() || DEFAULT_CTA,
+      caption: document.getElementById("caption").value,
+      photo,
+      customPhoto: isUpload ? photo : null
     };
   }
 
+  function fillFormFromPost(post) {
+    quiet = true;
+    document.getElementById("line1").value = post.line1 || "";
+    document.getElementById("line2").value = post.line2 || "";
+    document.getElementById("sub").value = post.sub || "";
+    document.getElementById("cta").value = post.cta || DEFAULT_CTA;
+    document.getElementById("caption").value = post.caption || "";
+    document.querySelectorAll(".photo-pick[data-photo]").forEach(btn => {
+      btn.setAttribute("aria-pressed", btn.dataset.photo === post.photo ? "true" : "false");
+    });
+    quiet = false;
+  }
+
   function renderStudioPreview() {
-    const post = studioPost();
+    const post = currentPostFromForm();
     const fb = document.getElementById("prevFb");
     const ig = document.getElementById("prevIg");
     fb.innerHTML = creativeHTML(post, "fb");
     ig.innerHTML = creativeHTML(post, "ig");
-    // scale IG creative height already set via .ig class; transform set in CSS for fixed preview widths
     const fbC = fb.querySelector(".creative");
     const igC = ig.querySelector(".creative");
     if (fbC) fbC.style.transform = `scale(${220 / 1080})`;
     if (igC) igC.style.transform = `scale(${200 / 1080})`;
   }
 
-  function fillFromSuggestion(slotId, index) {
-    const list = SUGGESTIONS[slotId];
-    const s = list[((index % list.length) + list.length) % list.length];
-    studio.photo = s.photo;
-    studio.customPhoto = null;
-    studio.line1 = s.line1;
-    studio.line2 = s.line2;
-    studio.sub = s.sub;
-    studio.cta = DEFAULT_CTA;
-    studio.applySlot = slotId;
-    studio.variant = index;
-    studio.caption = buildCaption(s, slotId);
-    writeStudioForm();
+  function commitSelected(opts = {}) {
+    const state = ensureState();
+    const post = currentPostFromForm();
+    if (!post.line1 || !post.line2) {
+      if (!opts.silent) setStudioStatus("Add both headline lines.", "err");
+      return state;
+    }
+    // preserve status unless reset
+    if (!opts.resetStatus) post.status = state[selectedId]?.status || "awaiting";
+    else post.status = "awaiting";
+    if (post.customPhoto && uploadCache[post.customPhoto]) {
+      state._uploads = state._uploads || {};
+      state._uploads[post.customPhoto] = uploadCache[post.customPhoto];
+    }
+    state[selectedId] = post;
+    saveState(state);
+    renderAll(state);
+    renderDayTabs(state);
+    if (!quiet && !opts.silent) setStudioStatus(`Saved · ${dayName(selectedId)}`, "ok");
+    return state;
+  }
+
+  function scheduleCommit() {
+    if (quiet) return;
     renderStudioPreview();
-    setStudioStatus(`Loaded ${SLOTS.find(x => x.id === slotId).day} suggestion ${index + 1}/${list.length}.`);
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => commitSelected({ silent: true }), 280);
+    setStudioStatus(`Editing ${dayName(selectedId)}…`);
+  }
+
+  function selectDay(id, { scrollStudio = false } = {}) {
+    selectedId = id;
+    const state = ensureState();
+    const post = state[id];
+    document.getElementById("studioTitle").textContent = dayName(id);
+    renderPhotoRow();
+    fillFormFromPost(post);
+    renderStudioPreview();
+    renderDayTabs(state);
+    renderAll(state);
+    setStudioStatus(`Editing ${dayName(id)}. Changes save to this day automatically.`);
+    if (scrollStudio) document.getElementById("studio").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function renderDayTabs(state) {
+    const row = document.getElementById("dayTabs");
+    row.innerHTML = SLOTS.map(s => {
+      const st = state[s.id]?.status || "awaiting";
+      const label = st === "approved" ? "Approved" : st === "editing" ? "Editing caption" : "Awaiting";
+      return `<button type="button" class="day-tab" role="tab" data-day="${s.id}" aria-selected="${s.id === selectedId}">
+        ${s.day}<span class="mini">${label}</span>
+      </button>`;
+    }).join("");
+    row.querySelectorAll("[data-day]").forEach(btn => {
+      btn.addEventListener("click", () => selectDay(btn.dataset.day));
+    });
+  }
+
+  function tryAnotherIdea() {
+    const state = ensureState();
+    const list = SUGGESTIONS[selectedId];
+    const next = ((state[selectedId].variant || 0) + 1) % list.length;
+    const s = list[next];
+    const post = {
+      ...state[selectedId],
+      variant: next,
+      photo: s.photo,
+      customPhoto: null,
+      line1: s.line1,
+      line2: s.line2,
+      sub: s.sub,
+      cta: DEFAULT_CTA,
+      caption: buildCaption(s, selectedId),
+      status: "awaiting"
+    };
+    state[selectedId] = post;
+    saveState(state);
+    fillFormFromPost(post);
+    renderPhotoRow();
+    document.querySelectorAll(".photo-pick[data-photo]").forEach(btn => {
+      btn.setAttribute("aria-pressed", btn.dataset.photo === post.photo ? "true" : "false");
+    });
+    renderStudioPreview();
+    renderAll(state);
+    renderDayTabs(state);
+    setStudioStatus(`Another idea for ${dayName(selectedId)} — keep editing or download.`, "ok");
   }
 
   function renderPhotoRow() {
+    const state = ensureState();
+    const post = state[selectedId];
     const row = document.getElementById("photoRow");
+    let customBtn = "";
+    if (post.customPhoto && uploadCache[post.customPhoto]) {
+      customBtn = `<button type="button" class="photo-pick" data-photo="${post.customPhoto}" aria-pressed="${post.photo === post.customPhoto}" title="Uploaded">
+        <img src="${uploadCache[post.customPhoto]}" alt="Uploaded">
+      </button>`;
+    }
     row.innerHTML = PHOTOS.map(p => `
-      <button type="button" class="photo-pick" data-photo="${p.id}" aria-pressed="${studio.photo === p.id}" title="${p.label}">
+      <button type="button" class="photo-pick" data-photo="${p.id}" aria-pressed="${post.photo === p.id}" title="${p.label}">
         <img src="${p.src}" alt="${p.label}">
       </button>
-    `).join("") + `
+    `).join("") + customBtn + `
       <label class="photo-pick upload" title="Upload photo">
         Upload
         <input type="file" id="photoUpload" accept="image/*" />
@@ -812,10 +895,9 @@
     `;
     row.querySelectorAll(".photo-pick[data-photo]").forEach(btn => {
       btn.addEventListener("click", () => {
-        studio.photo = btn.dataset.photo;
-        studio.customPhoto = null;
-        writeStudioForm();
-        renderStudioPreview();
+        row.querySelectorAll(".photo-pick[data-photo]").forEach(b => b.setAttribute("aria-pressed", "false"));
+        btn.setAttribute("aria-pressed", "true");
+        scheduleCommit();
       });
     });
     document.getElementById("photoUpload").addEventListener("change", async (e) => {
@@ -825,12 +907,16 @@
         const dataUrl = await compressUpload(file);
         const id = "up-" + Date.now();
         uploadCache[id] = dataUrl;
-        studio.customPhoto = id;
-        studio.photo = id;
-        // show as selected — add temp thumb
-        writeStudioForm();
+        const st = ensureState();
+        st[selectedId].customPhoto = id;
+        st[selectedId].photo = id;
+        st._uploads = st._uploads || {};
+        st._uploads[id] = dataUrl;
+        saveState(st);
+        renderPhotoRow();
         renderStudioPreview();
-        setStudioStatus("Custom photo loaded.", "ok");
+        commitSelected();
+        setStudioStatus("Custom photo saved to this day.", "ok");
       } catch (err) {
         console.error(err);
         setStudioStatus("Couldn’t read that photo. Try a JPG or PNG.", "err");
@@ -863,24 +949,6 @@
     });
   }
 
-  function renderPacks() {
-    const row = document.getElementById("packRow");
-    row.innerHTML = SLOTS.map(s =>
-      `<button type="button" class="pack" data-pack="${s.id}">${s.day} pack</button>`
-    ).join("") + `<button type="button" class="pack" id="btnSurprise">Surprise me</button>`;
-    row.querySelectorAll("[data-pack]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const id = btn.dataset.pack;
-        fillFromSuggestion(id, 0);
-      });
-    });
-    document.getElementById("btnSurprise").addEventListener("click", () => {
-      const id = studio.applySlot || "001";
-      const next = ((studio.variant || 0) + 1) % SUGGESTIONS[id].length;
-      fillFromSuggestion(id, next);
-    });
-  }
-
   /* —— Board cards —— */
   function badgeHTML(status) {
     if (status === "approved") {
@@ -890,16 +958,18 @@
     return `<span class="badge awaiting">Awaiting</span>`;
   }
 
-  function hintFor(status) {
-    if (status === "approved") return "Ticked for approval. Pete can post this version.";
-    if (status === "editing") return "Edit the caption, then Save — that will approve it. Or Cancel.";
-    return "Approve as-is, edit the caption, Change for a new suggestion, or Open in studio.";
+  function hintFor(status, selected) {
+    if (status === "approved") return "Approved. Pete can download and publish.";
+    if (status === "editing") return "Edit the caption, then Save — that approves it.";
+    if (selected) return "You’re editing this day above. Approve here when Jon is happy.";
+    return "Approve, edit the caption, try another idea, or edit this day.";
   }
 
   function cardHTML(slot, item) {
     const editing = item.status === "editing";
+    const selected = slot.id === selectedId;
     return `
-      <article class="fb" data-id="${slot.id}">
+      <article class="fb${selected ? " selected" : ""}" data-id="${slot.id}">
         <div class="fb-head">
           <div class="av"><img src="${LOGO}" alt=""></div>
           <div>
@@ -923,7 +993,7 @@
         </div>
         <div class="controls">
           <div class="meta">
-            <div class="slot">OAR-SM-${slot.id} · ${slot.day}</div>
+            <div class="slot">OAR-SM-${slot.id} · ${slot.day}${selected ? " · Editing" : ""}</div>
             <div data-badge>${badgeHTML(item.status)}</div>
           </div>
           <div class="btns" data-btns>
@@ -932,12 +1002,12 @@
               <button type="button" class="btn-cancel" data-action="cancel-edit">Cancel</button>
             ` : `
               <button type="button" class="btn-approve" data-action="approve">Approve</button>
-              <button type="button" class="btn-edit" data-action="edit">Edit</button>
-              <button type="button" class="btn-change" data-action="change">Change</button>
-              <button type="button" class="btn-studio" data-action="open-studio">Open in studio</button>
+              <button type="button" class="btn-edit" data-action="edit">Edit caption</button>
+              <button type="button" class="btn-change" data-action="change">Try another idea</button>
+              <button type="button" class="btn-select" data-action="select">Edit this day</button>
             `}
           </div>
-          <p class="hint" data-hint>${hintFor(item.status)}</p>
+          <p class="hint" data-hint>${hintFor(item.status, selected)}</p>
         </div>
       </article>`;
   }
@@ -964,14 +1034,18 @@
       card.querySelectorAll("[data-action]").forEach(btn => {
         btn.addEventListener("click", async () => {
           const action = btn.dataset.action;
+          if (action === "select") {
+            selectDay(id, { scrollStudio: true });
+            return;
+          }
           if (action === "approve") {
             state[id].status = "approved";
             state[id].caption = card.querySelector("[data-caption]").textContent;
-            saveState(state); renderAll(state);
+            saveState(state); renderAll(state); renderDayTabs(state);
           }
           if (action === "edit") {
             state[id].status = "editing";
-            saveState(state); renderAll(state);
+            saveState(state); renderAll(state); renderDayTabs(state);
             const ta = document.querySelector(`.fb[data-id="${id}"] [data-editor]`);
             if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
           }
@@ -979,11 +1053,12 @@
             const ta = card.querySelector("[data-editor]");
             state[id].caption = ta.value.trim();
             state[id].status = "approved";
-            saveState(state); renderAll(state);
+            saveState(state); renderAll(state); renderDayTabs(state);
+            if (id === selectedId) fillFormFromPost(state[id]);
           }
           if (action === "cancel-edit") {
             state[id].status = "awaiting";
-            saveState(state); renderAll(state);
+            saveState(state); renderAll(state); renderDayTabs(state);
           }
           if (action === "change") {
             const list = SUGGESTIONS[id];
@@ -998,28 +1073,19 @@
             state[id].cta = DEFAULT_CTA;
             state[id].caption = buildCaption(s, id);
             state[id].status = "awaiting";
-            saveState(state); renderAll(state);
-            const hint = document.querySelector(`.fb[data-id="${id}"] [data-hint]`);
-            if (hint) hint.textContent = "New suggestion loaded — approve, edit, or Change again.";
-          }
-          if (action === "open-studio") {
-            const item = state[id];
-            studio.photo = item.photo;
-            studio.customPhoto = item.customPhoto || null;
-            if (item.customPhoto && item.photo && String(item.photo).startsWith("data:")) {
-              uploadCache[item.customPhoto] = item.photo;
+            saveState(state);
+            if (id === selectedId) {
+              fillFormFromPost(state[id]);
+              renderPhotoRow();
+              document.querySelectorAll(".photo-pick[data-photo]").forEach(b => {
+                b.setAttribute("aria-pressed", b.dataset.photo === state[id].photo ? "true" : "false");
+              });
+              renderStudioPreview();
             }
-            studio.line1 = item.line1;
-            studio.line2 = item.line2;
-            studio.sub = item.sub;
-            studio.cta = item.cta || DEFAULT_CTA;
-            studio.caption = item.caption;
-            studio.applySlot = id;
-            studio.variant = item.variant || 0;
-            writeStudioForm();
-            renderStudioPreview();
-            document.getElementById("studio").scrollIntoView({ behavior: "smooth", block: "start" });
-            setStudioStatus(`Editing ${SLOTS.find(s => s.id === id).day} in the studio.`);
+            renderAll(state);
+            renderDayTabs(state);
+            const hint = document.querySelector(`.fb[data-id="${id}"] [data-hint]`);
+            if (hint) hint.textContent = "New idea loaded.";
           }
         });
       });
@@ -1030,57 +1096,16 @@
     const parts = SLOTS.map(s => {
       const st = state[s.id]?.status || "awaiting";
       const label = st === "approved" ? "Approved ✓" : st === "editing" ? "Editing" : "Awaiting";
-      return `${s.id}: ${label}`;
+      return `${s.day}: ${label}`;
     });
     const approved = SLOTS.filter(s => state[s.id]?.status === "approved").length;
     document.getElementById("summaryText").textContent =
       approved === 0 ? parts.join("  ·  ") : `${approved}/3 approved  ·  ${parts.join("  ·  ")}`;
   }
 
-  /* —— Actions —— */
-  async function applyToWeek() {
-    const post = studioPost();
-    if (!post.line1 || !post.line2) {
-      setStudioStatus("Add both headline lines before applying.", "err");
-      return;
-    }
-    setStudioStatus("Baking Facebook & Instagram…");
-    const btn = document.getElementById("btnApply");
-    btn.disabled = true;
-    try {
-      await bakeBoth(post); // warm + validate bake works
-      const state = ensureState();
-      const id = post.applySlot || studio.applySlot;
-      // Persist custom photo data on the post if needed
-      const saved = { ...post };
-      if (saved.customPhoto && uploadCache[saved.customPhoto]) {
-        // keep reference; also stash compact flag
-        saved._hasUpload = true;
-      }
-      saved.status = "awaiting";
-      state[id] = saved;
-      // stash uploads into state lightly via photo data url key for refresh survival (compressed)
-      if (saved.customPhoto && uploadCache[saved.customPhoto]) {
-        try {
-          state._uploads = state._uploads || {};
-          state._uploads[saved.customPhoto] = uploadCache[saved.customPhoto];
-        } catch (_) {}
-      }
-      saveState(state);
-      renderAll(state);
-      const day = SLOTS.find(s => s.id === id).day;
-      setStudioStatus(`Applied to ${day}. Scroll down to approve.`, "ok");
-      document.querySelector(`.fb[data-id="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-    } catch (err) {
-      console.error(err);
-      setStudioStatus("Bake failed — preview still works. Check the photo and try again.", "err");
-    } finally {
-      btn.disabled = false;
-    }
-  }
-
   async function downloadBoth() {
-    const post = studioPost();
+    commitSelected({ silent: true });
+    const post = ensureState()[selectedId];
     if (!post.line1 || !post.line2) {
       setStudioStatus("Add both headline lines before downloading.", "err");
       return;
@@ -1091,23 +1116,24 @@
     try {
       const { fb, ig } = await bakeBoth(post);
       const stamp = new Date().toISOString().slice(0, 10);
-      const slug = `${post.line1}-${post.line2}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
-      downloadDataUrl(fb, `oar-fb-${slug || "post"}-${stamp}.jpg`);
+      const day = dayName(selectedId).toLowerCase();
+      const slug = `${post.line1}-${post.line2}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 36);
+      downloadDataUrl(fb, `oar-${day}-fb-${slug || "post"}-${stamp}.jpg`);
       await new Promise(r => setTimeout(r, 350));
-      downloadDataUrl(ig, `oar-ig-${slug || "post"}-${stamp}.jpg`);
-      setStudioStatus("Downloaded Facebook (4:5) and Instagram (1:1).", "ok");
+      downloadDataUrl(ig, `oar-${day}-ig-${slug || "post"}-${stamp}.jpg`);
+      setStudioStatus(`Downloaded ${dayName(selectedId)} — Facebook + Instagram.`, "ok");
     } catch (err) {
       console.error(err);
-      setStudioStatus("Download failed. Try another photo or refresh the page.", "err");
+      setStudioStatus("Download failed. Try another photo or refresh.", "err");
     } finally {
       btn.disabled = false;
     }
   }
 
   async function copyCaption() {
-    readStudioForm();
+    commitSelected({ silent: true });
     try {
-      await navigator.clipboard.writeText(studio.caption);
+      await navigator.clipboard.writeText(document.getElementById("caption").value);
       setStudioStatus("Caption copied.", "ok");
     } catch {
       setStudioStatus("Couldn’t copy — select the caption and copy manually.", "err");
@@ -1128,51 +1154,27 @@
   /* —— Init —— */
   (async function init() {
     const state = ensureState();
-    // restore uploads
-    if (state._uploads) {
-      Object.assign(uploadCache, state._uploads);
-    }
-    renderPacks();
-    renderPhotoRow();
-    // seed studio from Monday
-    const mon = state["001"];
-    studio.photo = mon.photo || "bg-001";
-    studio.customPhoto = mon.customPhoto || null;
-    studio.line1 = mon.line1;
-    studio.line2 = mon.line2;
-    studio.sub = mon.sub;
-    studio.cta = mon.cta || DEFAULT_CTA;
-    studio.caption = mon.caption;
-    studio.applySlot = "001";
-    studio.variant = mon.variant || 0;
-    writeStudioForm();
-    renderStudioPreview();
-    renderAll(state);
+    if (state._uploads) Object.assign(uploadCache, state._uploads);
 
-    // live update preview
-    ["line1","line2","sub","cta","caption","applySlot"].forEach(id => {
-      document.getElementById(id).addEventListener("input", () => {
-        renderStudioPreview();
-        setStudioStatus("");
-      });
-      document.getElementById(id).addEventListener("change", () => renderStudioPreview());
+    selectDay("001");
+    window.addEventListener("resize", () => scaleCardCreatives());
+
+    ["line1","line2","sub","cta","caption"].forEach(id => {
+      document.getElementById(id).addEventListener("input", scheduleCommit);
     });
     document.getElementById("btnCaption").addEventListener("click", () => {
-      readStudioForm();
-      studio.caption = buildCaption(studio, studio.applySlot);
-      writeStudioForm();
+      const post = currentPostFromForm();
+      document.getElementById("caption").value = buildCaption(post, selectedId);
+      commitSelected();
       setStudioStatus("Caption rebuilt from headline + sub.", "ok");
     });
-    document.getElementById("btnApply").addEventListener("click", applyToWeek);
+    document.getElementById("btnIdea").addEventListener("click", tryAnotherIdea);
     document.getElementById("btnDownload").addEventListener("click", downloadBoth);
     document.getElementById("btnCopy").addEventListener("click", copyCaption);
 
-    window.addEventListener("resize", () => scaleCardCreatives());
-
-    // preload stock assets so first bake is instant
     try {
       await Promise.all([LOGO, ...PHOTOS.map(p => p.src)].map(loadImage));
-      setStudioStatus("Studio ready — edit, download, or apply to the week.");
+      setStudioStatus(`Editing ${dayName(selectedId)}. Changes save to this day automatically.`);
     } catch (err) {
       console.warn(err);
       setStudioStatus("Loaded with limited assets. Uploads and text still work.");
