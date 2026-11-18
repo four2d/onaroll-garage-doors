@@ -112,8 +112,8 @@
   <header>
     <p class="eyebrow">On A Roll Garage Doors · Facebook &amp; Instagram</p>
     <h1>Review your posts</h1>
-    <!-- board-v3 -->
-    <p>Approve as-is, edit the caption, or ask for a new suggestion. Nothing goes live until Pete posts the approved ones.</p>
+    <!-- board-v12 -->
+    <p>Approve as-is, edit the caption, or ask for a new suggestion. Nothing goes live until Pete posts the approved ones. <span style="display:inline-block;margin-left:.35rem;padding:.15rem .45rem;border-radius:999px;background:#009edf;color:#fff;font-size:.7rem;font-weight:750;letter-spacing:.04em;vertical-align:middle">v12</span></p>
   </header>
 
   <div class="wrap">
@@ -126,7 +126,7 @@
   </div>
 
   <script>
-  const KEY = "oar-jon-board-v11";
+  const KEY = "oar-jon-board-v12";
   const PAGE = "On A Roll Garage Doors";
 
   const SUGGESTIONS = {
@@ -456,7 +456,7 @@
   function variantImage(slotId, variantIndex) {
     const n = SUGGESTIONS[slotId].length;
     const i = ((variantIndex % n) + n) % n;
-    return `v-${slotId}-${i}.jpg`;
+    return `v-${slotId}-${i}.jpg?v=12`;
   }
 
   async function ensureImages(state) {
@@ -504,14 +504,14 @@
             saveState(state); renderAll(state);
           }
           if (action === "change") {
-            const hint = card.querySelector("[data-hint]");
-            if (hint) hint.textContent = "Loading new suggestion…";
             const next = ((state[id].variant || 0) + 1) % SUGGESTIONS[id].length;
             state[id].variant = next;
             state[id].caption = SUGGESTIONS[id][next].caption;
             state[id].status = "awaiting";
             state[id].imageDataUrl = variantImage(id, next);
             saveState(state); renderAll(state);
+            const hint = document.querySelector(`.fb[data-id="${id}"] [data-hint]`);
+            if (hint) hint.textContent = "New suggestion loaded — approve, edit, or Change again.";
           }
         });
       });
