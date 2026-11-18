@@ -289,6 +289,10 @@
     .btns button:active{transform:scale(.985)}
     .btns button:disabled{opacity:.45; cursor:not-allowed; transform:none; filter:none}
     .btn-approve{background:var(--ok); color:#fff; box-shadow:0 3px 12px rgba(11,28,40,.16)}
+    .btn-approve.is-approved{
+      background:#fff; color:var(--ok); border:1.5px solid #b7e0c7 !important;
+      box-shadow:none;
+    }
     .btn-edit{
       background:#fff; color:var(--blue-dark); border:1.5px solid #9ec5e8 !important;
     }
@@ -370,7 +374,7 @@
   <header>
     <div class="row">
       <div>
-        <h1>This week’s posts <span class="pill" id="verPill">v27</span></h1>
+        <h1>This week’s posts <span class="pill" id="verPill">v28</span></h1>
         <p>Three posts for Jon to review. Approve, edit, or change — nothing goes live until Pete publishes.</p>
       </div>
     </div>
@@ -1235,9 +1239,16 @@
   }
 
   function hintFor(status, selected) {
-    if (status === "approved") return "Locked in. Pete can download and publish this one.";
+    if (status === "approved") return "Approved — tap Undo if you change your mind.";
     if (editorOpen && selected) return "Editing above — tap Done when it looks right.";
     return "Approve this post, Edit any part, or Change for a new suggestion.";
+  }
+
+  function approveButtonHTML(status) {
+    if (status === "approved") {
+      return `<button type="button" class="btn-approve is-approved" data-action="approve" aria-pressed="true">Undo</button>`;
+    }
+    return `<button type="button" class="btn-approve" data-action="approve" aria-pressed="false">Approve</button>`;
   }
 
   function cardHTML(slot, item) {
@@ -1267,7 +1278,7 @@
         </div>
         <div class="controls">
           <div class="btns" data-btns>
-              <button type="button" class="btn-approve" data-action="approve">Approve</button>
+              ${approveButtonHTML(item.status)}
               <button type="button" class="btn-edit" data-action="edit">Edit</button>
               <button type="button" class="btn-change" data-action="change">Change</button>
           </div>
@@ -1303,6 +1314,20 @@
             return;
           }
           if (action === "approve") {
+            const wasApproved = state[id].status === "approved";
+            if (wasApproved) {
+              // Tap again to undo
+              if (editorOpen && id === selectedId) {
+                commitSelected({ silent: true });
+                state[id] = ensureState()[id];
+                editorOpen = false;
+              }
+              state[id].status = "awaiting";
+              saveState(state);
+              renderWeekBar(state);
+              renderAll(state);
+              return;
+            }
             if (editorOpen && id === selectedId) {
               commitSelected({ silent: true });
               state[id] = ensureState()[id];
