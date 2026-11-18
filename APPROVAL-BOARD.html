@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>On A Roll — Social Batch 1 · Approval</title>
+  <style>
+    :root {
+      --ink: #1a1f24;
+      --muted: #5c6670;
+      --line: #e4e8ec;
+      --paper: #f7f5f1;
+      --card: #ffffff;
+      --accent: #009edf;
+      --accent-dark: #0077a8;
+      --ok: #1f7a4d;
+      --warn: #9a6b00;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.45;
+    }
+    header {
+      background: var(--ink);
+      color: #fff;
+      padding: 2rem 1.5rem 1.75rem;
+    }
+    header .eyebrow {
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      opacity: 0.7;
+      margin: 0 0 0.5rem;
+    }
+    header h1 {
+      margin: 0;
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      font-weight: 650;
+    }
+    header p {
+      margin: 0.6rem 0 0;
+      max-width: 42rem;
+      opacity: 0.85;
+      font-size: 0.98rem;
+    }
+    .wrap {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin: 0 0 1.5rem;
+    }
+    .pill {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.35rem 0.85rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .pill strong { color: var(--ink); font-weight: 600; }
+    .grid {
+      display: grid;
+      gap: 1.5rem;
+    }
+    @media (min-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    article.post {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      overflow: hidden;
+      display: grid;
+      box-shadow: 0 10px 30px rgba(26, 31, 36, 0.04);
+    }
+    @media (min-width: 820px) {
+      article.post {
+        grid-template-columns: minmax(280px, 420px) 1fr;
+      }
+    }
+    .shot {
+      background: #111;
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+    }
+    .shot img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .body {
+      padding: 1.35rem 1.4rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+    }
+    .label-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      justify-content: space-between;
+    }
+    .id {
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .day {
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    .status {
+      font-size: 0.75rem;
+      font-weight: 650;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--warn);
+      background: #fff7e6;
+      border: 1px solid #f0d9a0;
+      border-radius: 999px;
+      padding: 0.25rem 0.65rem;
+    }
+    h2 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 650;
+    }
+    .goal {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .caption, .tags {
+      margin: 0;
+      white-space: pre-wrap;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 0.84rem;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 0.9rem 1rem;
+    }
+    .section-label {
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 650;
+      margin: 0.2rem 0 0;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: auto;
+      padding-top: 0.3rem;
+    }
+    .actions span {
+      font-size: 0.82rem;
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      padding: 0.45rem 0.7rem;
+      color: var(--muted);
+    }
+    footer {
+      margin: 2rem 0 3rem;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    footer a { color: var(--accent-dark); }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="eyebrow">On A Roll Garage Doors · Social takeover</p>
+    <h1>Batch 1 — three finished posts for approval</h1>
+    <p>Image + caption + hashtags ready to paste. Approve, edit, or reject in chat. Nothing posts until you say yes.</p>
+  </header>
+
+  <div class="wrap">
+    <div class="meta">
+      <div class="pill"><strong>Cadence</strong> Mon · Wed · Fri</div>
+      <div class="pill"><strong>Channels</strong> Facebook + Instagram</div>
+      <div class="pill"><strong>Rule</strong> Approve before post</div>
+      <div class="pill"><strong>Contact</strong> 01202 553603 · 07534 066813</div>
+    </div>
+
+    <div class="grid">
+
+      <article class="post">
+        <div class="shot"><img src="OAR-SM-001.jpg" alt="Anthracite roller garage door on modern home" /></div>
+        <div class="body">
+          <div class="label-row">
+            <div>
+              <div class="id">OAR-SM-001</div>
+              <div class="day">Monday · Install proof</div>
+            </div>
+            <span class="status">Awaiting approval</span>
+          </div>
+          <h2>New door. Clean finish.</h2>
+          <p class="goal">Stop the scroll · pull free-survey enquiries</p>
+          <p class="section-label">Caption</p>
+          <pre class="caption">New door. Clean finish. Done in about half a day.
+
+This is the kind of insulated aluminium roller we fit across Poole, Bournemouth, Christchurch and Dorset — secure, low-maintenance, and made to measure for your opening.
+
+Thinking of upgrading before winter sets in?
+Send us a photo of your current door for a free no-obligation survey.
+
+📞 01202 553603
+💬 WhatsApp 07534 066813
+🌐 onarollgaragedoors.co.uk
+
+Family-run in Poole since 2014.</pre>
+          <p class="section-label">Instagram hashtags</p>
+          <pre class="tags">#OnARollGarageDoors #GarageDoors #RollerGarageDoor #GarageDoorInstallation #Poole #Bournemouth #Christchurch #Dorset #LocalBusiness #HomeImprovement #ElectricGarageDoor #SecureHome #MadeToMeasure #FamilyRun #FreeSurvey</pre>
+          <div class="actions">
+            <span>Approve</span><span>Edit</span><span>Reject</span><span>Swap for Jon’s photo</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="post">
+        <div class="shot"><img src="OAR-SM-002.jpg" alt="Hand holding garage door remote by roller door" /></div>
+        <div class="body">
+          <div class="label-row">
+            <div>
+              <div class="id">OAR-SM-002</div>
+              <div class="day">Wednesday · Security tip</div>
+            </div>
+            <span class="status">Awaiting approval</span>
+          </div>
+          <h2>Secure the garage too</h2>
+          <p class="goal">Helpful tip · open repair vs replace chats</p>
+          <p class="section-label">Caption</p>
+          <pre class="caption">Your front door isn’t the only one that needs to be secure.
+
+A lot of older garage doors are still the easiest way into the house. A modern electric roller locks into the side guides and opens with a remote — no outside handle to force.
+
+Not sure if yours needs a repair or a full upgrade?
+Message us a photo. We’ll give you straight advice — no hard sell.
+
+On A Roll Garage Doors · Poole
+📞 01202 553603 · WhatsApp 07534 066813</pre>
+          <p class="section-label">Instagram hashtags</p>
+          <pre class="tags">#GarageDoorSecurity #HomeSecurity #RollerGarageDoor #GarageDoors #Poole #Bournemouth #Christchurch #Dorset #ElectricGarageDoor #LocalTrades #FamilyBusiness #SecureHome #DorsetBusiness #FreeAdvice #OnARollGarageDoors</pre>
+          <div class="actions">
+            <span>Approve</span><span>Edit</span><span>Reject</span><span>Swap for Jon’s photo</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="post">
+        <div class="shot"><img src="OAR-SM-003.jpg" alt="Trade van and new anthracite garage door on driveway" /></div>
+        <div class="body">
+          <div class="label-row">
+            <div>
+              <div class="id">OAR-SM-003</div>
+              <div class="day">Friday · Free survey CTA</div>
+            </div>
+            <span class="status">Awaiting approval</span>
+          </div>
+          <h2>Book a free survey</h2>
+          <p class="goal">Direct this-week enquiries · phone / WhatsApp</p>
+          <p class="section-label">Caption</p>
+          <pre class="caption">Local garage door fitters — Poole, Bournemouth, Christchurch &amp; Dorset.
+
+We supply, install and repair roller, sectional and commercial doors. Typical install is around half a day. Old door removed and recycled. Many doors come with a 5-year warranty.
+
+Book a free survey (no obligation):
+→ Call 01202 553603
+→ WhatsApp 07534 066813
+→ Or reply with your postcode and a photo of your door
+
+Happy to help with new installs, repairs and automation.
+On A Roll Garage Doors — family-run since 2014.</pre>
+          <p class="section-label">Instagram hashtags</p>
+          <pre class="tags">#FreeSurvey #GarageDoorFitters #GarageDoorsPoole #GarageDoorsBournemouth #Christchurch #Dorset #RollerDoors #GarageDoorRepair #LocalBusiness #PooleBusiness #HomeUpgrades #TradeLocal #OnARollGarageDoors #WhatsAppUs #FamilyRun</pre>
+          <div class="actions">
+            <span>Approve</span><span>Edit</span><span>Reject</span><span>Swap for Jon’s photo</span>
+          </div>
+        </div>
+      </article>
+
+    </div>
+
+    <footer>
+      Reply in chat, e.g. <strong>001 approve · 002 edit · 003 approve</strong>.
+      Files live in <code>Documents/Dorset-Freelance/clients/OnARoll-Garage-Doors/social-posts/batch-1/</code>.
+      Photoreal stand-ins — swap Jon’s real installs when ready; captions stay.
+    </footer>
+  </div>
+</body>
+</html>
