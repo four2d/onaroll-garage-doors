@@ -3,144 +3,52 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>On A Roll — Social approval</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <title>On A Roll — Modern posts + Facebook preview</title>
   <style>
     :root{--ink:#101820;--muted:#66707a;--line:#e6e2da;--paper:#f6f3ed;--card:#fff;--blue:#009edf}
     *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;background:var(--paper);color:var(--ink);line-height:1.45}
-    header{background:var(--ink);color:#fff;padding:2.2rem 1.4rem 1.8rem}
+    .banner{background:#009edf;color:#fff;text-align:center;padding:.7rem 1rem;font-weight:700;font-size:.95rem}
+    header{background:var(--ink);color:#fff;padding:2rem 1.4rem 1.7rem}
     .eyebrow{letter-spacing:.14em;text-transform:uppercase;font-size:.7rem;opacity:.65;margin:0 0 .55rem}
-    h1{margin:0;font-size:clamp(1.6rem,3vw,2.1rem);font-weight:720;letter-spacing:-.02em}
-    header p{margin:.7rem 0 0;max-width:38rem;opacity:.88;font-size:1rem}
-    .wrap{max-width:1120px;margin:0 auto;padding:1.5rem}
-    .meta{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.5rem}
-    .pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:.4rem .9rem;font-size:.82rem;color:var(--muted)}
-    .pill strong{color:var(--ink)}
-    h2.section{font-size:1.05rem;margin:2rem 0 .9rem;letter-spacing:-.01em}
-    .grid{display:grid;gap:1.2rem}
+    h1{margin:0;font-size:clamp(1.55rem,3vw,2rem);font-weight:720;letter-spacing:-.02em}
+    header p{margin:.7rem 0 0;max-width:40rem;opacity:.9}
+    .wrap{max-width:1120px;margin:0 auto;padding:1.4rem}
+    h2{font-size:1.15rem;margin:1.8rem 0 .9rem}
+    .grid{display:grid;gap:1rem}
     @media(min-width:900px){.grid-3{grid-template-columns:repeat(3,1fr)}}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 10px 28px rgba(16,24,32,.04)}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.04)}
     .card img{width:100%;display:block}
-    .card .pad{padding:1rem 1.05rem 1.15rem}
-    .id{font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-    .card h3{margin:.25rem 0 .35rem;font-size:1.05rem}
-    .status{display:inline-block;font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9a6b00;background:#fff7e6;border:1px solid #f0d9a0;border-radius:999px;padding:.2rem .55rem}
-    .fb-grid{display:grid;gap:1.2rem}
-    @media(min-width:900px){.fb-grid{grid-template-columns:repeat(3,1fr)}}
-    .fb-card{background:#e9ebee;border-radius:18px;padding:1rem;border:1px solid var(--line)}
-    .fb-card img{width:100%;border-radius:12px;display:block;box-shadow:0 8px 24px rgba(0,0,0,.08)}
-    .fb-card p{margin:.7rem 0 0;font-size:.85rem;color:var(--muted)}
+    .pad{padding:.9rem 1rem 1.05rem}
+    .id{font-size:.75rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+    .fb{background:#e9ebee;border-radius:16px;padding:.85rem;border:1px solid var(--line)}
+    .fb img{width:100%;border-radius:10px;display:block;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+    .note{color:var(--muted);font-size:.88rem;margin:.55rem 0 0}
     footer{margin:2rem 0 3rem;color:var(--muted);font-size:.9rem}
-    a{color:#0077a8}
   </style>
 </head>
 <body>
+  <div class="banner">UPDATED — Modern creatives + Facebook feed previews (Batch 1)</div>
   <header>
-    <p class="eyebrow">On A Roll Garage Doors · Facebook &amp; Instagram</p>
-    <h1>Modern posts + Facebook preview</h1>
-    <p>Hi Jon — new cleaner creatives (logo + From £1,250). Below each graphic is a simulation of how it should look in the Facebook feed. Reply Approve / Edit / Reject.</p>
+    <p class="eyebrow">On A Roll Garage Doors</p>
+    <h1>Modern posts + how they’ll look on Facebook</h1>
+    <p>Hi Jon — section 1 is the image we’d upload. Section 2 simulates the Facebook post (profile, caption, image, Like / Comment / Share). Tell Pete Approve / Edit / Reject for each.</p>
   </header>
   <div class="wrap">
-    <div class="meta">
-      <div class="pill"><strong>Style</strong> Modern photo-first</div>
-      <div class="pill"><strong>Price</strong> From £1,250</div>
-      <div class="pill"><strong>Rule</strong> Approve before post</div>
-    </div>
-
-    <h2 class="section">1 · Branded creatives (what we post as the image)</h2>
+    <h2>1 · Modern branded images</h2>
     <div class="grid grid-3">
-      <div class="card">
-        <img src="OAR-SM-001.jpg?v=modern5" alt="Stop living with that door" />
-        <div class="pad">
-          <div class="id">OAR-SM-001 · Mon</div>
-          <h3>Stop living with that door.</h3>
-          <span class="status">Awaiting approval</span>
-        </div>
-      </div>
-      <div class="card">
-        <img src="OAR-SM-002.jpg?v=modern5" alt="Your garage is an open invite" />
-        <div class="pad">
-          <div class="id">OAR-SM-002 · Wed</div>
-          <h3>Your garage is an open invite.</h3>
-          <span class="status">Awaiting approval</span>
-        </div>
-      </div>
-      <div class="card">
-        <img src="OAR-SM-003.jpg?v=modern5" alt="Don’t overpay for a garage door" />
-        <div class="pad">
-          <div class="id">OAR-SM-003 · Fri</div>
-          <h3>Don’t overpay for a garage door.</h3>
-          <span class="status">Awaiting approval</span>
-        </div>
-      </div>
+      <div class="card"><img src="creative-001.jpg" alt=""><div class="pad"><div class="id">OAR-SM-001 · Mon</div><strong>Stop living with that door.</strong><p class="note">From £1,250 · Free survey</p></div></div>
+      <div class="card"><img src="creative-002.jpg" alt=""><div class="pad"><div class="id">OAR-SM-002 · Wed</div><strong>Your garage is an open invite.</strong><p class="note">From £1,250 · Security hook</p></div></div>
+      <div class="card"><img src="creative-003.jpg" alt=""><div class="pad"><div class="id">OAR-SM-003 · Fri</div><strong>Don’t overpay for a garage door.</strong><p class="note">From £1,250 · Local fitters</p></div></div>
     </div>
 
-    <h2 class="section">2 · Facebook feed simulation</h2>
-    <div class="fb-grid">
-      <div class="fb-card">
-        <img src="FB-MOCK-001.jpg?v=modern5" alt="Facebook mock post 1" />
-        <p>How OAR-SM-001 should look on Facebook</p>
-      </div>
-      <div class="fb-card">
-        <img src="FB-MOCK-002.jpg?v=modern5" alt="Facebook mock post 2" />
-        <p>How OAR-SM-002 should look on Facebook</p>
-      </div>
-      <div class="fb-card">
-        <img src="FB-MOCK-003.jpg?v=modern5" alt="Facebook mock post 3" />
-        <p>How OAR-SM-003 should look on Facebook</p>
-      </div>
+    <h2>2 · Facebook feed simulation</h2>
+    <div class="grid grid-3">
+      <div class="fb"><img src="facebook-preview-001.jpg" alt="Facebook preview 1"><p class="note">Preview of post 001 on Facebook</p></div>
+      <div class="fb"><img src="facebook-preview-002.jpg" alt="Facebook preview 2"><p class="note">Preview of post 002 on Facebook</p></div>
+      <div class="fb"><img src="facebook-preview-003.jpg" alt="Facebook preview 3"><p class="note">Preview of post 003 on Facebook</p></div>
     </div>
-
-    <h2 class="section">3 · Captions to paste</h2>
-    <div class="card" style="padding:1.1rem 1.2rem">
-      <p class="id">OAR-SM-001</p>
-      <pre style="white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:.84rem;background:var(--paper);padding:.9rem 1rem;border-radius:12px;border:1px solid var(--line)">Stop living with that door — from £1,250.
-
-Made-to-measure insulated aluminium rollers fitted across Poole, Bournemouth, Christchurch and Dorset. Tidy half-day install. Old door recycled. Many doors carry a 5-year warranty.
-
-Book a free no-obligation survey:
-📞 01202 553603
-💬 WhatsApp 07534 066813
-🌐 onarollgaragedoors.co.uk
-
-On A Roll Garage Doors — family-run in Poole since 2014.
-
-#OnARollGarageDoors #GarageDoors #RollerGarageDoor #GarageDoorInstallation #Poole #Bournemouth #Christchurch #Dorset #LocalBusiness #HomeImprovement #ElectricGarageDoor #SecureHome #MadeToMeasure #FamilyRun #FreeSurvey</pre>
-    </div>
-    <div class="card" style="padding:1.1rem 1.2rem;margin-top:1rem">
-      <p class="id">OAR-SM-002</p>
-      <pre style="white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:.84rem;background:var(--paper);padding:.9rem 1rem;border-radius:12px;border:1px solid var(--line)">Your garage is an open invite. From £1,250.
-
-Older garage doors are often the easiest way into the house. A modern electric roller locks into the side guides and opens with a remote — no outside handle to force.
-
-Not sure if you need a repair or a full upgrade?
-Send us a photo for straight advice — no hard sell.
-
-On A Roll Garage Doors · Poole
-📞 01202 553603 · WhatsApp 07534 066813
-
-#GarageDoorSecurity #HomeSecurity #RollerGarageDoor #GarageDoors #Poole #Bournemouth #Christchurch #Dorset #ElectricGarageDoor #LocalTrades #FamilyBusiness #SecureHome #DorsetBusiness #FreeAdvice #OnARollGarageDoors</pre>
-    </div>
-    <div class="card" style="padding:1.1rem 1.2rem;margin-top:1rem">
-      <p class="id">OAR-SM-003</p>
-      <pre style="white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:.84rem;background:var(--paper);padding:.9rem 1rem;border-radius:12px;border:1px solid var(--line)">Don’t overpay for a garage door. From £1,250.
-
-On A Roll supply, install and repair garage doors across Poole, Bournemouth, Christchurch and Dorset. Typical fit about half a day. Old door recycled. Many doors with a 5-year warranty.
-
-Book a free survey (no obligation):
-→ Call 01202 553603
-→ WhatsApp 07534 066813
-→ Or reply with your postcode + a photo of your door
-
-Family-run in Poole since 2014.
-
-#FreeSurvey #GarageDoorFitters #GarageDoorsPoole #GarageDoorsBournemouth #Christchurch #Dorset #RollerDoors #GarageDoorRepair #LocalBusiness #PooleBusiness #HomeUpgrades #TradeLocal #OnARollGarageDoors #WhatsAppUs #FamilyRun</pre>
-    </div>
-
-    <footer>
-      Message Pete: <strong>001 approve · 002 edit · 003 approve</strong><br>
-      Live board: <a href="https://four2d.github.io/onaroll-garage-doors/">four2d.github.io/onaroll-garage-doors</a> ·
-      Repo: <a href="https://github.com/four2d/onaroll-garage-doors">github.com/four2d/onaroll-garage-doors</a>
-    </footer>
+    <footer>Repo: <a href="https://github.com/four2d/onaroll-garage-doors">github.com/four2d/onaroll-garage-doors</a></footer>
   </div>
 </body>
 </html>
