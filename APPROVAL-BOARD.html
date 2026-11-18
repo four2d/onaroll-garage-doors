@@ -335,6 +335,18 @@
       margin:0; font-size:1rem; font-weight:750; letter-spacing:-.01em;
     }
     .inline-edit .edit-top p{margin:.2rem 0 0; font-size:.82rem; color:var(--muted)}
+    .edit-section{
+      margin:0 0 1rem; padding:1rem .95rem .85rem;
+      background:#fff; border:1px solid var(--line); border-radius:12px;
+    }
+    .edit-section:last-of-type{margin-bottom:.35rem}
+    .edit-section .sec-label{
+      margin:0 0 .15rem; font-size:.95rem; font-weight:750; letter-spacing:-.01em; color:var(--ink);
+    }
+    .edit-section .sec-help{
+      margin:0 0 .85rem; font-size:.8rem; color:var(--muted); line-height:1.4;
+    }
+    .edit-section .field:last-child{margin-bottom:0}
     .inline-edit .studio-actions{margin-top:.85rem}
     .inline-edit .status-line{margin:.55rem 0 0}
     .fb.editing .fb-media{border-top:1px solid var(--line)}
@@ -358,7 +370,7 @@
   <header>
     <div class="row">
       <div>
-        <h1>This week’s posts <span class="pill" id="verPill">v25</span></h1>
+        <h1>This week’s posts <span class="pill" id="verPill">v26</span></h1>
         <p>Three posts for Jon to review. Approve, edit, or change — nothing goes live until Pete publishes.</p>
       </div>
     </div>
@@ -380,7 +392,7 @@
   </div>
 
   <script>
-  const KEY = "oar-jon-board-v25";
+  const KEY = "oar-jon-board-v26";
   const PAGE = "On A Roll Garage Doors";
   const LOGO = "logo.jpg";
   const PRICE = "From £1,250";
@@ -812,38 +824,52 @@
         <div class="edit-top">
           <div>
             <h3>Editing ${slot.day}</h3>
-            <p>Changes save as you type. The preview above updates live.</p>
+            <p>Change the words on the image and the caption. Preview updates as you type.</p>
           </div>
           <button type="button" class="btn-done" data-action="done">Done</button>
         </div>
-        <div class="field">
-          <label>Photo</label>
-          <div class="photos" id="photoRow"></div>
-          <p class="hint">Stock shot or upload a real install photo.</p>
-        </div>
-        <div class="pair">
-          <div class="field">
-            <label for="line1">Headline line 1</label>
-            <input id="line1" type="text" maxlength="42" autocomplete="off" />
+
+        <div class="edit-section">
+          <h4 class="sec-label">On the image</h4>
+          <p class="sec-help">Big headline, supporting line, and the call-to-action on the photo.</p>
+          <div class="pair">
+            <div class="field">
+              <label for="line1">Headline · line 1</label>
+              <input id="line1" type="text" maxlength="42" autocomplete="off" placeholder="e.g. Your garage" />
+            </div>
+            <div class="field">
+              <label for="line2">Headline · line 2</label>
+              <input id="line2" type="text" maxlength="42" autocomplete="off" placeholder="e.g. is an open invite." />
+            </div>
           </div>
           <div class="field">
-            <label for="line2">Headline line 2</label>
-            <input id="line2" type="text" maxlength="42" autocomplete="off" />
+            <label for="sub">Supporting line</label>
+            <input id="sub" type="text" maxlength="110" autocomplete="off" placeholder="Short line under the headline" />
+          </div>
+          <div class="field">
+            <label for="cta">Call to action</label>
+            <input id="cta" type="text" maxlength="60" autocomplete="off" placeholder="Free survey · 01202 553603" />
           </div>
         </div>
-        <div class="field">
-          <label for="sub">Subline</label>
-          <input id="sub" type="text" maxlength="110" autocomplete="off" />
+
+        <div class="edit-section">
+          <h4 class="sec-label">Photo</h4>
+          <p class="sec-help">Stock shot or upload a real install photo.</p>
+          <div class="field">
+            <div class="photos" id="photoRow"></div>
+          </div>
         </div>
-        <div class="field">
-          <label for="cta">CTA on image</label>
-          <input id="cta" type="text" maxlength="60" autocomplete="off" />
+
+        <div class="edit-section">
+          <h4 class="sec-label">Caption under the post</h4>
+          <p class="sec-help">What people read below the image on Facebook and Instagram.</p>
+          <div class="field">
+            <label for="caption">Caption</label>
+            <textarea id="caption" maxlength="2200"></textarea>
+            <p class="hint"><button type="button" class="pack" id="btnCaption">Rebuild caption from headline</button></p>
+          </div>
         </div>
-        <div class="field">
-          <label for="caption">Caption (FB &amp; IG)</label>
-          <textarea id="caption" maxlength="2200"></textarea>
-          <p class="hint"><button type="button" class="pack" id="btnCaption">Rebuild caption from headline</button></p>
-        </div>
+
         <div class="studio-actions">
           <button type="button" class="btn-done" data-action="done">Done</button>
           <button type="button" class="btn-dl" id="btnDownload">Download FB + IG</button>
