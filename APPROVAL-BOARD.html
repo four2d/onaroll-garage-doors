@@ -126,7 +126,7 @@
   </div>
 
   <script>
-  const KEY = "oar-jon-board-v10";
+  const KEY = "oar-jon-board-v11";
   const PAGE = "On A Roll Garage Doors";
 
   const SUGGESTIONS = {
@@ -147,7 +147,7 @@
         caption: "Half a day. New door. From £1,250.\n\nMade-to-measure aluminium rollers. Old door removed and recycled. Family-run in Poole since 2014.\n\nBook a free survey → 01202 553603\n\n#RollerGarageDoor #Poole #Dorset #FamilyRun #OnARollGarageDoors"
       },
       {
-        headline: ["Match the house.", "Not “near enough”."],
+        headline: ["Match the house.", "Not near enough."],
         sub: "Colour-matched aluminium rollers, fitted tidy, local team.",
         caption: "Match the house. Not “near enough”. From £1,250.\n\nColour-matched aluminium rollers across Poole, Bournemouth, Christchurch and Dorset.\n\nFree no-obligation survey → 01202 553603 · WhatsApp 07534 066813\n\n#GarageDoorInstallation #Poole #Bournemouth #Christchurch #OnARollGarageDoors"
       }
@@ -199,9 +199,9 @@
   };
 
   const SLOTS = [
-    { id: "001", day: "Monday", bg: "bg-001.jpg", starter: "shot-001.jpg", time: "Just now" },
-    { id: "002", day: "Wednesday", bg: "bg-002.jpg", starter: "shot-002.jpg", time: "2h" },
-    { id: "003", day: "Friday", bg: "bg-003.jpg", starter: "shot-003.jpg", time: "Yesterday at 09:12" }
+    { id: "001", day: "Monday", bg: "bg-001.jpg", starter: "v-001-0.jpg", time: "Just now" },
+    { id: "002", day: "Wednesday", bg: "bg-002.jpg", starter: "v-002-0.jpg", time: "2h" },
+    { id: "003", day: "Friday", bg: "bg-003.jpg", starter: "v-003-0.jpg", time: "Yesterday at 09:12" }
   ];
 
   const logoUrl = "logo.jpg";
@@ -453,18 +453,18 @@
     return "Approve as-is, edit the caption, or Change for a new suggestion.";
   }
 
+  function variantImage(slotId, variantIndex) {
+    const n = SUGGESTIONS[slotId].length;
+    const i = ((variantIndex % n) + n) % n;
+    return `v-${slotId}-${i}.jpg`;
+  }
+
   async function ensureImages(state) {
     for (const slot of SLOTS) {
       const item = state[slot.id];
-      // Variant 0 uses the polished starter JPG (Pete-approved style).
-      // Change / later variants use canvas generation.
-      if (!item.imageDataUrl) {
-        if ((item.variant || 0) === 0 && slot.starter) {
-          item.imageDataUrl = slot.starter;
-        } else {
-          item.imageDataUrl = await renderCreative(slot.id, item.variant || 0);
-        }
-      }
+      item.variant = item.variant || 0;
+      item.imageDataUrl = variantImage(slot.id, item.variant);
+      if (!item.caption) item.caption = SUGGESTIONS[slot.id][item.variant].caption;
     }
     saveState(state);
   }
@@ -504,23 +504,14 @@
             saveState(state); renderAll(state);
           }
           if (action === "change") {
-            card.classList.add("busy");
             const hint = card.querySelector("[data-hint]");
-            if (hint) hint.textContent = "Creating a new suggestion…";
-            btn.disabled = true;
-            try {
-              const next = ((state[id].variant || 0) + 1) % SUGGESTIONS[id].length;
-              state[id].variant = next;
-              state[id].caption = SUGGESTIONS[id][next].caption;
-              state[id].status = "awaiting";
-              state[id].imageDataUrl = await renderCreative(id, next);
-              saveState(state); renderAll(state);
-            } catch (err) {
-              console.error(err);
-              if (hint) hint.textContent = "Couldn’t create a new post. Try again.";
-              btn.disabled = false;
-              card.classList.remove("busy");
-            }
+            if (hint) hint.textContent = "Loading new suggestion…";
+            const next = ((state[id].variant || 0) + 1) % SUGGESTIONS[id].length;
+            state[id].variant = next;
+            state[id].caption = SUGGESTIONS[id][next].caption;
+            state[id].status = "awaiting";
+            state[id].imageDataUrl = variantImage(id, next);
+            saveState(state); renderAll(state);
           }
         });
       });
