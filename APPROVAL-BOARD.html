@@ -467,7 +467,7 @@
   <header>
     <div class="row">
       <div>
-        <h1>This week’s posts <span class="pill" id="verPill">v35</span></h1>
+        <h1>This week’s posts <span class="pill" id="verPill">v36</span></h1>
         <p>Tap <strong>Approve</strong> on each post — or Edit / Change if you want a tweak. Nothing goes live until Pete publishes.</p>
         <p class="head-nav"><a href="archive/">Past weeks</a></p>
       </div>
@@ -501,10 +501,11 @@
   const KEY = "oar-jon-board-v26";
   const PAGE = "On A Roll Garage Doors";
   const LOGO = "logo.jpg";
-  const PRICE = "From £1,250";
   const PHONE = "01202 553603";
   const WHATSAPP = "07534 066813";
   const DEFAULT_CTA = "Free survey · 01202 553603";
+  const DEFAULT_PRICE_FROM = "From";
+  const DEFAULT_PRICE_AMOUNT = "£1,250";
 
   const PHOTOS = [
     { id: "bg-001", src: "bg-001.jpg", label: "Roller install" },
@@ -566,6 +567,16 @@
     renderSummary(state);
   }
 
+  function priceFromOf(post) {
+    return String(post?.priceFrom || DEFAULT_PRICE_FROM).trim() || DEFAULT_PRICE_FROM;
+  }
+  function priceAmountOf(post) {
+    return String(post?.priceAmount || DEFAULT_PRICE_AMOUNT).trim() || DEFAULT_PRICE_AMOUNT;
+  }
+  function pricePhrase(post) {
+    return `${priceFromOf(post)} ${priceAmountOf(post)}`.replace(/\s+/g, " ").trim();
+  }
+
   function defaultPost(slotId) {
     const s = SUGGESTIONS[slotId][0];
     return {
@@ -574,7 +585,9 @@
       line2: s.line2,
       sub: s.sub,
       cta: DEFAULT_CTA,
-      caption: buildCaption(s, slotId),
+      priceFrom: DEFAULT_PRICE_FROM,
+      priceAmount: DEFAULT_PRICE_AMOUNT,
+      caption: buildCaption({ ...s, priceFrom: DEFAULT_PRICE_FROM, priceAmount: DEFAULT_PRICE_AMOUNT }, slotId),
       status: "awaiting",
       variant: 0,
       customPhoto: null
@@ -587,6 +600,8 @@
       if (!state[slot.id] || !state[slot.id].line1) state[slot.id] = defaultPost(slot.id);
       if (!state[slot.id].status) state[slot.id].status = "awaiting";
       if (typeof state[slot.id].variant !== "number") state[slot.id].variant = 0;
+      if (!state[slot.id].priceFrom) state[slot.id].priceFrom = DEFAULT_PRICE_FROM;
+      if (!state[slot.id].priceAmount) state[slot.id].priceAmount = DEFAULT_PRICE_AMOUNT;
       if (!state[slot.id].caption) state[slot.id].caption = buildCaption(state[slot.id], slot.id);
       if (!state[slot.id].cta) state[slot.id].cta = DEFAULT_CTA;
     }
@@ -604,7 +619,7 @@
     if (!body) body = "Made-to-measure garage doors, fitted locally.";
     // Ensure the opening ends cleanly before the price clause
     const lead = /[.!?]$/.test(body) ? body : `${body}.`;
-    return `${lead} From £1,250.\n\nFree survey → ${PHONE} · WhatsApp ${WHATSAPP}\nonarollgaragedoors.co.uk\n\nOn A Roll Garage Doors — family-run in Poole since 2014.\n\n${HASHTAGS[slotId] || HASHTAGS["001"]}`;
+    return `${lead} ${pricePhrase(post)}.\n\nFree survey → ${PHONE} · WhatsApp ${WHATSAPP}\nonarollgaragedoors.co.uk\n\nOn A Roll Garage Doors — family-run in Poole since 2014.\n\n${HASHTAGS[slotId] || HASHTAGS["001"]}`;
   }
 
   function photoSrc(post) {
@@ -629,7 +644,7 @@
       <div class="cr-photo" style="background-image:url('${src.replace(/'/g, "%27")}')"></div>
       <div class="cr-grad"></div>
       <div class="cr-logo"><img src="${LOGO}" alt=""></div>
-      <div class="cr-price"><span class="from">From</span><span class="amount">£1,250</span></div>
+      <div class="cr-price"><span class="from">${escapeHTML(priceFromOf(post))}</span><span class="amount">${escapeHTML(priceAmountOf(post))}</span></div>
       <div class="cr-copy">
         <div class="cr-rule"></div>
         <div class="cr-h1"><span class="l">${escapeHTML(post.line1)}</span><span class="l">${escapeHTML(post.line2)}</span></div>
@@ -686,7 +701,8 @@
     const H = format === "ig" ? 1080 : 1350;
     const cacheKey = JSON.stringify({
       f: format, p: post.photo, c: post.customPhoto || "",
-      l1: post.line1, l2: post.line2, s: post.sub, cta: post.cta
+      l1: post.line1, l2: post.line2, s: post.sub, cta: post.cta,
+      pf: priceFromOf(post), pa: priceAmountOf(post)
     });
     if (bakeCache.has(cacheKey)) return bakeCache.get(cacheKey);
 
@@ -742,10 +758,10 @@
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
 
-    // price — two chips (FROM + £1,250) so bake never double-paints text
+    // price — two chips so bake never double-paints text
     ctx.font = "700 17px Helvetica, Arial, sans-serif";
-    const tFrom = "FROM";
-    const tPrice = "£1,250";
+    const tFrom = priceFromOf(post).toUpperCase();
+    const tPrice = priceAmountOf(post);
     const padX = 18, gap = 10, ph = 44, py = 58;
     const fromW = ctx.measureText(tFrom).width;
     const priceW = ctx.measureText(tPrice).width;
@@ -869,6 +885,8 @@
       line2: document.getElementById("line2").value.trim(),
       sub: document.getElementById("sub").value.trim(),
       cta: document.getElementById("cta").value.trim() || DEFAULT_CTA,
+      priceFrom: document.getElementById("priceFrom").value.trim() || DEFAULT_PRICE_FROM,
+      priceAmount: document.getElementById("priceAmount").value.trim() || DEFAULT_PRICE_AMOUNT,
       caption: document.getElementById("caption").value,
       photo,
       customPhoto: isUpload ? photo : null
@@ -881,6 +899,8 @@
     document.getElementById("line2").value = post.line2 || "";
     document.getElementById("sub").value = post.sub || "";
     document.getElementById("cta").value = post.cta || DEFAULT_CTA;
+    document.getElementById("priceFrom").value = priceFromOf(post);
+    document.getElementById("priceAmount").value = priceAmountOf(post);
     document.getElementById("caption").value = post.caption || "";
     document.querySelectorAll(".photo-pick[data-photo]").forEach(btn => {
       btn.setAttribute("aria-pressed", btn.dataset.photo === post.photo ? "true" : "false");
@@ -945,7 +965,7 @@
 
         <div class="edit-section">
           <h4 class="sec-label">On the image</h4>
-          <p class="sec-help">The two big lines on the photo.</p>
+          <p class="sec-help">Headline and the price chips on the photo.</p>
           <div class="pair">
             <div class="field">
               <label for="line1">Headline · line 1</label>
@@ -954,6 +974,16 @@
             <div class="field">
               <label for="line2">Headline · line 2</label>
               <input id="line2" type="text" maxlength="42" autocomplete="off" placeholder="e.g. is an open invite." />
+            </div>
+          </div>
+          <div class="pair">
+            <div class="field">
+              <label for="priceFrom">Price label</label>
+              <input id="priceFrom" type="text" maxlength="16" autocomplete="off" placeholder="From" />
+            </div>
+            <div class="field">
+              <label for="priceAmount">Price</label>
+              <input id="priceAmount" type="text" maxlength="18" autocomplete="off" placeholder="£1,250" />
             </div>
           </div>
         </div>
@@ -1178,7 +1208,7 @@
     renderPhotoRow();
     fillFormFromPost(post);
     refreshCardCreative();
-    ["line1","line2","sub","cta","caption"].forEach(fid => {
+    ["line1","line2","sub","cta","priceFrom","priceAmount","caption"].forEach(fid => {
       const el = document.getElementById(fid);
       if (!el || el.dataset.wired === "1") return;
       el.dataset.wired = "1";
