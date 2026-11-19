@@ -1,0 +1,297 @@
+[
+  {
+    "id": "stock-001",
+    "src": "photos/stock-001.jpg",
+    "label": "Roller install"
+  },
+  {
+    "id": "stock-002",
+    "src": "photos/stock-002.jpg",
+    "label": "Security"
+  },
+  {
+    "id": "stock-003",
+    "src": "photos/stock-003.jpg",
+    "label": "Local fit"
+  },
+  {
+    "id": "stock-004",
+    "src": "photos/stock-004.jpg",
+    "label": "Install 1"
+  },
+  {
+    "id": "stock-005",
+    "src": "photos/stock-005.jpg",
+    "label": "Install 2"
+  },
+  {
+    "id": "stock-006",
+    "src": "photos/stock-006.jpg",
+    "label": "Install 3"
+  },
+  {
+    "id": "stock-007",
+    "src": "photos/stock-007.jpg",
+    "label": "Install 4"
+  },
+  {
+    "id": "stock-008",
+    "src": "photos/stock-008.jpg",
+    "label": "Install 5"
+  },
+  {
+    "id": "stock-009",
+    "src": "photos/stock-009.jpg",
+    "label": "Install 6"
+  },
+  {
+    "id": "stock-010",
+    "src": "photos/stock-010.jpg",
+    "label": "Install 7"
+  },
+  {
+    "id": "stock-011",
+    "src": "photos/stock-011.jpg",
+    "label": "Install 8"
+  },
+  {
+    "id": "stock-012",
+    "src": "photos/stock-012.jpg",
+    "label": "Install 9"
+  },
+  {
+    "id": "stock-013",
+    "src": "photos/stock-013.jpg",
+    "label": "Install 10"
+  },
+  {
+    "id": "stock-014",
+    "src": "photos/stock-014.jpg",
+    "label": "Install 11"
+  },
+  {
+    "id": "stock-015",
+    "src": "photos/stock-015.jpg",
+    "label": "Install 12"
+  },
+  {
+    "id": "stock-016",
+    "src": "photos/stock-016.jpg",
+    "label": "Install 13"
+  },
+  {
+    "id": "stock-017",
+    "src": "photos/stock-017.jpg",
+    "label": "Install 14"
+  },
+  {
+    "id": "stock-018",
+    "src": "photos/stock-018.jpg",
+    "label": "Install 15"
+  },
+  {
+    "id": "stock-019",
+    "src": "photos/stock-019.jpg",
+    "label": "Install 16"
+  },
+  {
+    "id": "stock-020",
+    "src": "photos/stock-020.jpg",
+    "label": "Install 17"
+  },
+  {
+    "id": "stock-021",
+    "src": "photos/stock-021.jpg",
+    "label": "Install 18"
+  },
+  {
+    "id": "stock-022",
+    "src": "photos/stock-022.jpg",
+    "label": "Install 19"
+  },
+  {
+    "id": "stock-023",
+    "src": "photos/stock-023.jpg",
+    "label": "Install 20"
+  },
+  {
+    "id": "stock-024",
+    "src": "photos/stock-024.jpg",
+    "label": "Install 21"
+  },
+  {
+    "id": "stock-025",
+    "src": "photos/stock-025.jpg",
+    "label": "Install 22"
+  },
+  {
+    "id": "stock-026",
+    "src": "photos/stock-026.jpg",
+    "label": "Install 23"
+  },
+  {
+    "id": "stock-027",
+    "src": "photos/stock-027.jpg",
+    "label": "Install 24"
+  },
+  {
+    "id": "stock-028",
+    "src": "photos/stock-028.jpg",
+    "label": "Install 25"
+  },
+  {
+    "id": "stock-029",
+    "src": "photos/stock-029.jpg",
+    "label": "Install 26"
+  },
+  {
+    "id": "stock-030",
+    "src": "photos/stock-030.jpg",
+    "label": "Install 27"
+  },
+  {
+    "id": "stock-031",
+    "src": "photos/stock-031.jpg",
+    "label": "Install 28"
+  },
+  {
+    "id": "stock-032",
+    "src": "photos/stock-032.jpg",
+    "label": "Install 29"
+  },
+  {
+    "id": "stock-033",
+    "src": "photos/stock-033.jpg",
+    "label": "Install 30"
+  },
+  {
+    "id": "stock-034",
+    "src": "photos/stock-034.jpg",
+    "label": "Install 31"
+  },
+  {
+    "id": "stock-035",
+    "src": "photos/stock-035.jpg",
+    "label": "Install 32"
+  },
+  {
+    "id": "stock-036",
+    "src": "photos/stock-036.jpg",
+    "label": "Install 33"
+  },
+  {
+    "id": "stock-037",
+    "src": "photos/stock-037.jpg",
+    "label": "Install 34"
+  },
+  {
+    "id": "stock-038",
+    "src": "photos/stock-038.jpg",
+    "label": "Install 35"
+  },
+  {
+    "id": "stock-039",
+    "src": "photos/stock-039.jpg",
+    "label": "Install 36"
+  },
+  {
+    "id": "stock-040",
+    "src": "photos/stock-040.jpg",
+    "label": "Install 37"
+  },
+  {
+    "id": "stock-041",
+    "src": "photos/stock-041.jpg",
+    "label": "Install 38"
+  },
+  {
+    "id": "stock-042",
+    "src": "photos/stock-042.jpg",
+    "label": "Install 39"
+  },
+  {
+    "id": "stock-043",
+    "src": "photos/stock-043.jpg",
+    "label": "Install 40"
+  },
+  {
+    "id": "stock-044",
+    "src": "photos/stock-044.jpg",
+    "label": "Install 41"
+  },
+  {
+    "id": "stock-045",
+    "src": "photos/stock-045.jpg",
+    "label": "Install 42"
+  },
+  {
+    "id": "stock-046",
+    "src": "photos/stock-046.jpg",
+    "label": "Install 43"
+  },
+  {
+    "id": "stock-047",
+    "src": "photos/stock-047.jpg",
+    "label": "Install 44"
+  },
+  {
+    "id": "stock-048",
+    "src": "photos/stock-048.jpg",
+    "label": "Install 45"
+  },
+  {
+    "id": "stock-049",
+    "src": "photos/stock-049.jpg",
+    "label": "Install 46"
+  },
+  {
+    "id": "stock-050",
+    "src": "photos/stock-050.jpg",
+    "label": "Install 47"
+  },
+  {
+    "id": "stock-051",
+    "src": "photos/stock-051.jpg",
+    "label": "Install 48"
+  },
+  {
+    "id": "stock-052",
+    "src": "photos/stock-052.jpg",
+    "label": "Install 49"
+  },
+  {
+    "id": "stock-053",
+    "src": "photos/stock-053.jpg",
+    "label": "Install 50"
+  },
+  {
+    "id": "stock-054",
+    "src": "photos/stock-054.jpg",
+    "label": "Install 51"
+  },
+  {
+    "id": "stock-055",
+    "src": "photos/stock-055.jpg",
+    "label": "Install 52"
+  },
+  {
+    "id": "stock-056",
+    "src": "photos/stock-056.jpg",
+    "label": "Install 53"
+  },
+  {
+    "id": "stock-057",
+    "src": "photos/stock-057.jpg",
+    "label": "Install 54"
+  },
+  {
+    "id": "stock-058",
+    "src": "photos/stock-058.jpg",
+    "label": "Install 55"
+  },
+  {
+    "id": "stock-059",
+    "src": "photos/stock-059.jpg",
+    "label": "Install 56"
+  }
+]

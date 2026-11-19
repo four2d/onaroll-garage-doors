@@ -146,6 +146,12 @@
       font-size:9px; font-weight:750; letter-spacing:.04em; text-transform:uppercase;
       color:#fff; text-align:center; text-shadow:0 1px 3px rgba(0,0,0,.55);
     }
+    .photo-pick.load-more{
+      display:grid; place-items:center; background:#fff; color:var(--blue-dark);
+      font-size:12px; font-weight:750; letter-spacing:.02em; text-align:center;
+      border:1.5px solid #9ec5e8; line-height:1.25; padding:.35rem;
+    }
+    .photo-pick.load-more:hover{background:#eef5fb}
     .photo-pick input{display:none}
 
     .pack{
@@ -471,7 +477,7 @@
   <header>
     <div class="row">
       <div>
-        <h1>This week’s posts <span class="pill" id="verPill">v41</span></h1>
+        <h1>This week’s posts <span class="pill" id="verPill">v42</span></h1>
         <p>Tap <strong>Approve</strong> on each post — or Edit / Change if you want a tweak. Nothing goes live until Pete publishes.</p>
         <p class="head-nav"><a href="archive/">Past weeks</a></p>
       </div>
@@ -511,33 +517,36 @@
   const DEFAULT_PRICE_FROM = "From";
   const DEFAULT_PRICE_AMOUNT = "£1,250";
 
-  // Stock pack — drop more JPGs into photos/ and add rows here (or ask Pete to wire a drop from photo-pack/)
-  const PHOTOS = [
-    { id: "bg-001", src: "photos/stock-001.jpg", label: "Roller install" },
-    { id: "bg-002", src: "photos/stock-002.jpg", label: "Security" },
-    { id: "bg-003", src: "photos/stock-003.jpg", label: "Local fit" }
+  // Stock pack — loaded from photos/manifest.json (FB exports + installs). Keep text overlays as-is.
+  let PHOTOS = [
+    { id: "stock-001", src: "photos/stock-001.jpg", label: "Roller install" },
+    { id: "stock-002", src: "photos/stock-002.jpg", label: "Security" },
+    { id: "stock-003", src: "photos/stock-003.jpg", label: "Local fit" }
   ];
+  const PHOTO_ALIASES = { "bg-001": "stock-001", "bg-002": "stock-002", "bg-003": "stock-003" };
+  const PHOTO_PAGE = 8; // show this many first, then Load more
+  let photoShowCount = PHOTO_PAGE;
 
   const LIBRARY_KEY = "oar-jon-photo-library-v1";
 
   const SUGGESTIONS = {
     "001": [
-      { line1: "Stop living", line2: "with that door.", sub: "Made-to-measure aluminium rollers. Fitted in about half a day.", photo: "bg-001" },
-      { line1: "Your old door", line2: "is costing you.", sub: "Quiet, insulated, remote-controlled. Local fit in about half a day.", photo: "bg-001" },
-      { line1: "Half a day.", line2: "New door.", sub: "Made to measure. Old door recycled. Family-run in Poole.", photo: "bg-001" },
-      { line1: "Match the house.", line2: "Not near enough.", sub: "Colour-matched aluminium rollers, fitted tidy, local team.", photo: "bg-001" }
+      { line1: "Stop living", line2: "with that door.", sub: "Made-to-measure aluminium rollers. Fitted in about half a day.", photo: "stock-001" },
+      { line1: "Your old door", line2: "is costing you.", sub: "Quiet, insulated, remote-controlled. Local fit in about half a day.", photo: "stock-001" },
+      { line1: "Half a day.", line2: "New door.", sub: "Made to measure. Old door recycled. Family-run in Poole.", photo: "stock-001" },
+      { line1: "Match the house.", line2: "Not near enough.", sub: "Colour-matched aluminium rollers, fitted tidy, local team.", photo: "stock-001" }
     ],
     "002": [
-      { line1: "Your garage", line2: "is an open invite.", sub: "Electric rollers lock into the guides — no handle for thieves to force.", photo: "bg-002" },
-      { line1: "Thieves check", line2: "the garage first.", sub: "Upgrade to a remote roller that locks into the side guides.", photo: "bg-002" },
-      { line1: "Secure it.", line2: "Remote it.", sub: "Modern electric rollers. Local install. No hard sell.", photo: "bg-002" },
-      { line1: "No handle.", line2: "No easy way in.", sub: "That’s the point of a modern electric roller.", photo: "bg-002" }
+      { line1: "Your garage", line2: "is an open invite.", sub: "Electric rollers lock into the guides — no handle for thieves to force.", photo: "stock-002" },
+      { line1: "Thieves check", line2: "the garage first.", sub: "Upgrade to a remote roller that locks into the side guides.", photo: "stock-002" },
+      { line1: "Secure it.", line2: "Remote it.", sub: "Modern electric rollers. Local install. No hard sell.", photo: "stock-002" },
+      { line1: "No handle.", line2: "No easy way in.", sub: "That’s the point of a modern electric roller.", photo: "stock-002" }
     ],
     "003": [
-      { line1: "Don’t overpay", line2: "for a garage door.", sub: "Local Poole fitters. Straight quote. Free survey.", photo: "bg-003" },
-      { line1: "Local fitters.", line2: "Honest price.", sub: "Poole, Bournemouth, Christchurch & Dorset. Free survey.", photo: "bg-003" },
-      { line1: "Ready for a", line2: "new garage door?", sub: "Book a free survey this week. Typical fit about half a day.", photo: "bg-003" },
-      { line1: "A better door.", line2: "A fair price.", sub: "Family-run in Poole since 2014. Free survey, no hard sell.", photo: "bg-003" }
+      { line1: "Don’t overpay", line2: "for a garage door.", sub: "Local Poole fitters. Straight quote. Free survey.", photo: "stock-003" },
+      { line1: "Local fitters.", line2: "Honest price.", sub: "Poole, Bournemouth, Christchurch & Dorset. Free survey.", photo: "stock-003" },
+      { line1: "Ready for a", line2: "new garage door?", sub: "Book a free survey this week. Typical fit about half a day.", photo: "stock-003" },
+      { line1: "A better door.", line2: "A fair price.", sub: "Family-run in Poole since 2014. Free survey, no hard sell.", photo: "stock-003" }
     ]
   };
 
@@ -667,12 +676,31 @@
     return `${lead} ${pricePhrase(post)}.\n\nFree survey → ${PHONE} · WhatsApp ${WHATSAPP}\nonarollgaragedoors.co.uk\n\nOn A Roll Garage Doors — family-run in Poole since 2014.\n\n${HASHTAGS[slotId] || HASHTAGS["001"]}`;
   }
 
+  function resolvePhotoId(id) {
+    return PHOTO_ALIASES[id] || id;
+  }
+
   function photoSrc(post) {
     if (post.customPhoto && uploadCache[post.customPhoto]) return uploadCache[post.customPhoto];
-    if (post.photo && uploadCache[post.photo]) return uploadCache[post.photo];
+    const pid = resolvePhotoId(post.photo);
+    if (pid && uploadCache[pid]) return uploadCache[pid];
     if (post.photo && String(post.photo).startsWith("data:")) return post.photo;
-    const pack = PHOTOS.find(p => p.id === post.photo);
+    const pack = PHOTOS.find(p => p.id === pid) || PHOTOS.find(p => p.id === post.photo);
     return pack ? pack.src : PHOTOS[0].src;
+  }
+
+  async function loadPhotoManifest() {
+    try {
+      const res = await fetch(`photos/manifest.json?ts=${Date.now()}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data) && data.length) {
+        PHOTOS = data.filter(p => p && p.id && p.src);
+        photoShowCount = Math.min(PHOTO_PAGE, PHOTOS.length);
+      }
+    } catch (err) {
+      console.warn("photo manifest", err);
+    }
   }
 
   function escapeHTML(str) {
@@ -1169,6 +1197,7 @@
     const media = document.querySelector(`.fb[data-id="${id}"] .fb-media`);
     const mediaTop = media ? media.getBoundingClientRect().top : null;
     const y = window.scrollY;
+    photoShowCount = PHOTO_PAGE;
 
     if (editorOpen && selectedId === id) {
       pinMedia(id, mediaTop, y);
@@ -1343,15 +1372,26 @@
     if (!row) return;
     hydrateLibrary();
     const lib = libraryEntries();
-    const stockHtml = PHOTOS.map(p => `
-      <button type="button" class="photo-pick" data-photo="${p.id}" aria-pressed="${post.photo === p.id}" title="${p.label}">
-        <img src="${p.src}" alt="${p.label}">
+    const selectedIdResolved = resolvePhotoId(post.photo);
+    // Always include the currently selected stock photo even if it’s past the page
+    let visible = PHOTOS.slice(0, photoShowCount);
+    if (selectedIdResolved && !visible.some(p => p.id === selectedIdResolved)) {
+      const selected = PHOTOS.find(p => p.id === selectedIdResolved);
+      if (selected) visible = [selected, ...visible];
+    }
+    const remaining = Math.max(0, PHOTOS.length - photoShowCount);
+    const stockHtml = visible.map(p => `
+      <button type="button" class="photo-pick" data-photo="${p.id}" aria-pressed="${selectedIdResolved === p.id}" title="${p.label}">
+        <img src="${p.src}" alt="${p.label}" loading="lazy">
       </button>`).join("");
     const libHtml = lib.map(p => `
       <button type="button" class="photo-pick library" data-photo="${p.id}" aria-pressed="${post.photo === p.id}" title="${p.label}">
         <img src="${p.src}" alt="${p.label}">
       </button>`).join("");
-    row.innerHTML = stockHtml + libHtml + `
+    const moreBtn = remaining > 0
+      ? `<button type="button" class="photo-pick load-more" id="photoLoadMore" title="Show more photos">Load<br>+${remaining}</button>`
+      : "";
+    row.innerHTML = stockHtml + libHtml + moreBtn + `
       <label class="photo-pick upload" title="Upload photos to keep in this picker">
         Upload
         <input type="file" id="photoUpload" accept="image/*" multiple />
@@ -1359,9 +1399,10 @@
     `;
     const note = row.closest(".edit-section")?.querySelector(".photos-note");
     if (note) {
+      const shown = Math.min(photoShowCount, PHOTOS.length);
       note.textContent = lib.length
-        ? `${PHOTOS.length} stock · ${lib.length} saved upload${lib.length === 1 ? "" : "s"} — uploads stay here for reuse.`
-        : `${PHOTOS.length} stock photos — uploads are saved here so Jon can reuse them.`;
+        ? `Showing ${shown} of ${PHOTOS.length} · ${lib.length} saved upload${lib.length === 1 ? "" : "s"}`
+        : `Showing ${shown} of ${PHOTOS.length} photos — Load more for the rest. Uploads stay for reuse.`;
     }
     row.querySelectorAll(".photo-pick[data-photo]").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -1371,6 +1412,14 @@
         refreshCardCreative();
       });
     });
+    const more = document.getElementById("photoLoadMore");
+    if (more) {
+      more.addEventListener("click", () => {
+        photoShowCount = Math.min(PHOTOS.length, photoShowCount + 12);
+        renderPhotoRow();
+        wireInlineEditor();
+      });
+    }
     const upload = document.getElementById("photoUpload");
     if (!upload) return;
     upload.addEventListener("change", async (e) => {
@@ -1840,7 +1889,13 @@
   /* —— Init —— */
   (async function init() {
     hydrateLibrary();
+    await loadPhotoManifest();
     const state = ensureState();
+    // migrate old bg-* ids
+    for (const slot of SLOTS) {
+      const item = state[slot.id];
+      if (item?.photo && PHOTO_ALIASES[item.photo]) item.photo = PHOTO_ALIASES[item.photo];
+    }
     if (state._uploads) Object.assign(uploadCache, state._uploads);
 
     selectedId = "001";
@@ -1850,7 +1905,7 @@
     window.addEventListener("resize", () => scaleCardCreatives());
 
     try {
-      await Promise.all([LOGO, ...PHOTOS.map(p => p.src)].map(loadImage));
+      await Promise.all([LOGO, ...PHOTOS.slice(0, 12).map(p => p.src)].map(loadImage));
     } catch (err) {
       console.warn(err);
     }
