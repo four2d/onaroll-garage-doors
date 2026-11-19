@@ -80,7 +80,7 @@ const ANGLE_DEFS = [
   { id: "local", group: "local" },
   { id: "family-run", group: "business", label: "behind the scenes or family-run — the local team, honest and unshowy" },
   { id: "free-survey", group: "cta", label: "how a free survey works — we come out, measure up, talk it through, no hard sell" },
-  { id: "maintenance", group: "tips", label: "a simple maintenance tip for a garage door, practical and honest" },
+  { id: "maintenance", group: "tips", label: "a simple maintenance tip: help people spot the signs of a tired door, then call us. Never tell anyone to touch, tug, tighten or adjust springs, cables or tension" },
   { id: "colours", group: "product", label: "choosing colours and finishes for a made-to-measure roller" },
 ];
 const HASHTAGS = {
@@ -948,7 +948,7 @@ function buildCaption(post, slotId, town) {
     body = hook ? `${hook} ${sub}` : sub;
   }
   if (!body) body = "Made-to-measure garage doors, fitted locally.";
-  const lead = endCleanly(body);
+  const lead = startCaps(endCleanly(body));
   let tags = HASHTAGS[slotId] || HASHTAGS["001"];
   if (town) {
     const tag = "#" + town.replace(/[^A-Za-z]/g, "");
@@ -1112,6 +1112,9 @@ async function generateWithAi(env, slot, photo, weekId, attempt, context = {}) {
     "Do not use: guarantee, guaranteed, best, cheapest, No.1, #1, or any superlatives or salesy claims.",
     "No pound signs, no prices, no 'since ...', no testimonials.",
     "Warranty, if mentioned at all, may only be written exactly as '5-year warranty'.",
+    "This is a garage door company. Do not mention driveways, resin, paving or tarmac.",
+    "Garage door springs and cables are under high tension and are dangerous. Never tell people to check, tug, tighten, loosen, oil, touch or adjust springs, cables or tension. For maintenance, tell them to spot the signs (a door that's heavy, noisy or uneven) and then call us.",
+    "Start line1 and sub with a capital letter. line2 only needs a capital if it starts a new sentence.",
     `This post is for ${slot.day}. Angle: ${slot.angle}.`,
     context.note && context.note.text
       ? `Jon left this inspiration note. Use it faithfully. Do not invent extra job details, names or towns that are not in the note: "${String(context.note.text).slice(0, NOTE_MAX)}"`
@@ -1160,12 +1163,12 @@ async function generateWithAi(env, slot, photo, weekId, attempt, context = {}) {
       console.log(JSON.stringify({ event: "copy_parse_failed", slot: slot.id, attempt, model }));
       return null;
     }
-    const copy = {
+    const copy = sentenceCaseCopy({
       line1: tidyLine(parsed.line1, LINE_MAX),
       line2: endCleanly(tidyLine(parsed.line2, LINE_MAX)),
       sub: endCleanly(tidyLine(parsed.sub, SUB_MAX)),
-      model,
-    };
+    });
+    copy.model = model;
     const reason = validateCopy(copy, {
       note: context.note,
       photo,
@@ -1292,12 +1295,52 @@ function validateCopy(copy, context = {}) {
   if (isTitleCase(line1) || isTitleCase(line2)) return "title_case";
   if (isIncompleteLine(line1) || isIncompleteLine(line2) || isIncompleteLine(sub)) return "incomplete";
   if (inventedLocation(value, context)) return "invented_location";
+  if (isOffTrade(value)) return "off_trade";
+  if (isUnsafeDiy(value)) return "unsafe_diy";
   if (line1.length > LINE_MAX || line2.length > LINE_MAX) return "too_long";
   if (sub.length > SUB_MAX) return "too_long";
   if (`${line1} ${line2} ${sub}`.length > CAPTION_MAX) return "too_long";
   return null;
 }
 
+
+function startCaps(text) {
+  const value = String(text || "");
+  const match = value.match(/^([^A-Za-z]*)([a-zà-öø-ÿ])([\s\S]*)$/);
+  if (!match) return value;
+  return match[1] + match[2].toUpperCase() + match[3];
+}
+
+function sentenceCaseCopy(copy) {
+  const line1 = startCaps(String(copy?.line1 || ""));
+  const line2raw = String(copy?.line2 || "");
+  const line1Ends = /[.!?]$/.test(line1.trim());
+  const line2 = !line1 || line1Ends || /^[^A-Za-z]*[A-Z]/.test(line2raw) ? startCaps(line2raw) : line2raw;
+  return {
+    ...copy,
+    line1,
+    line2,
+    sub: startCaps(String(copy?.sub || "")),
+  };
+}
+
+function isOffTrade(value) {
+  return /\b(driveways?|resin|paving|tarmac|asphalt|block\s*paving|patios?)\b/i.test(String(value || ""));
+}
+
+function isUnsafeDiy(value) {
+  // Strip clear warnings ("don't touch the springs — call us") so they stay allowed.
+  const text = String(value || "").replace(
+    /\b(do\s*not|don't|dont|never|avoid|leave)\s+(?:trying\s+to\s+)?(?:touch|tug|tighten|loosen|adjust|check|inspect|wind|oil|replace|pull)[^.!?]{0,40}\b(springs?|cables?|tension)\b/gi,
+    " ",
+  );
+  const hardware = /\b(springs?|cables?|tension)\b/i;
+  const diy = /\b(tug|tighten|loosen|adjust|wind|unwind|oil|lubricat|grease|spray|replace|fix|touch|poke|inspect|check|test|service|pull|twist)\b/i;
+  if (hardware.test(text) && diy.test(text)) return true;
+  if (/\b(check|tug|tighten|loosen|adjust|touch|inspect|test|wind|oil|replace|pull)\b[^.!?]{0,30}\b(springs?|cables?|tension)\b/i.test(text)) return true;
+  if (/\b(springs?|cables?|tension)\b[^.!?]{0,30}\b(tug|tighten|loosen|adjust|touch|check|inspect|oil|replace|wind|pull)\b/i.test(text)) return true;
+  return false;
+}
 
 function isIncompleteLine(text) {
   const t = String(text || "").trim();
@@ -1386,7 +1429,7 @@ function templateCopy(slot, weekId, context = {}) {
     "001": [
       { line1: "Just fitted.", line2: "Looks the part.", sub: "Made-to-measure roller, fitted tidy by our local team." },
       { line1: "Old door out.", line2: "New door in.", sub: "A clean swap, usually done in about half a day." },
-      { line1: "Another driveway,", line2: "sorted locally.", sub: "Colour-matched aluminium roller, fitted in Poole and around Dorset." },
+      { line1: "Another garage,", line2: "sorted locally.", sub: "Colour-matched aluminium roller, fitted in Poole and around Dorset." },
     ],
     "002": [
       { line1: "Secure it.", line2: "Quiet it.", sub: "Modern rollers lock into the side guides and keep the garage warmer." },
@@ -1412,9 +1455,9 @@ function templateCopy(slot, weekId, context = {}) {
     break;
   }
   if (!pick) {
-    return { line1: "Made to measure.", line2: "Fitted locally.", sub: "Family-run garage door fitters in Poole, covering Dorset." };
+    return sentenceCaseCopy({ line1: "Made to measure.", line2: "Fitted locally.", sub: "Family-run garage door fitters in Poole, covering Dorset." });
   }
-  return { ...pick };
+  return sentenceCaseCopy(pick);
 }
 
 
