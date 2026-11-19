@@ -142,7 +142,7 @@
       border:1.5px dashed #b0bdc9;
     }
     .photo-pick.library::after{
-      content:"Saved"; position:absolute; left:4px; bottom:4px; right:4px;
+      content:"Yours"; position:absolute; left:4px; bottom:4px; right:4px;
       font-size:9px; font-weight:750; letter-spacing:.04em; text-transform:uppercase;
       color:#fff; text-align:center; text-shadow:0 1px 3px rgba(0,0,0,.55);
     }
@@ -477,7 +477,7 @@
   <header>
     <div class="row">
       <div>
-        <h1>This week’s posts <span class="pill" id="verPill">v43</span></h1>
+        <h1>This week’s posts <span class="pill" id="verPill">v44</span></h1>
         <p>Tap <strong>Approve</strong> on each post — or Edit / Change if you want a tweak. Nothing goes live until Pete publishes.</p>
         <p class="head-nav"><a href="archive/">Past weeks</a></p>
       </div>
@@ -662,7 +662,7 @@
     try { localStorage.setItem(LIBRARY_KEY, JSON.stringify(lib)); }
     catch (err) {
       console.warn("photo library full", err);
-      setStudioStatus("Photo library is full — older uploads may not stick after refresh.", "err");
+      setStudioStatus("Gallery is full — older uploads may not stick after refresh.", "err");
     }
   }
   function hydrateLibrary() {
@@ -675,15 +675,24 @@
     return Object.keys(lib)
       .sort()
       .reverse()
-      .map(id => ({ id, src: lib[id], label: "Saved upload" }));
+      .map(id => ({ id, src: lib[id], label: "Jon’s upload", kind: "upload" }));
   }
+
+  /** Full gallery roll: Jon’s uploads first, then stock (Change + picker use this). */
+  function galleryRoll() {
+    hydrateLibrary();
+    const uploads = libraryEntries();
+    const stock = PHOTOS.map(p => ({ ...p, kind: "stock" }));
+    return [...uploads, ...stock];
+  }
+
   function rememberUpload(id, dataUrl) {
     uploadCache[id] = dataUrl;
     const lib = loadLibrary();
     lib[id] = dataUrl;
-    // Cap library size so localStorage doesn’t explode (~12 large photos)
+    // Cap gallery uploads so localStorage doesn’t explode
     const ids = Object.keys(lib).sort();
-    while (ids.length > 24) {
+    while (ids.length > 36) {
       const drop = ids.shift();
       delete lib[drop];
     }
@@ -1154,7 +1163,7 @@
           <div class="more-body">
             <div class="edit-section">
               <h4 class="sec-label">Photo</h4>
-              <p class="sec-help">Pick a stock shot or upload installs — uploads stay in this picker for reuse.</p>
+              <p class="sec-help">Gallery roll — upload installs and they’re saved here for reuse (and for Change).</p>
               <p class="photos-note"></p>
               <div class="field">
                 <div class="photos" id="photoRow"></div>
@@ -1452,39 +1461,38 @@
     const post = state[selectedId];
     const row = document.getElementById("photoRow");
     if (!row) return;
-    hydrateLibrary();
-    const lib = libraryEntries();
+    const roll = galleryRoll();
+    const uploadCount = libraryEntries().length;
     const selectedIdResolved = resolvePhotoId(post.photo);
-    // Always include the currently selected stock photo even if it’s past the page
-    let visible = PHOTOS.slice(0, photoShowCount);
+    // Always include the currently selected photo even if it’s past the page
+    let visible = roll.slice(0, photoShowCount);
     if (selectedIdResolved && !visible.some(p => p.id === selectedIdResolved)) {
-      const selected = PHOTOS.find(p => p.id === selectedIdResolved);
-      if (selected) visible = [selected, ...visible];
+      const selected = roll.find(p => p.id === selectedIdResolved) ||
+        (uploadCache[selectedIdResolved]
+          ? { id: selectedIdResolved, src: uploadCache[selectedIdResolved], label: "Jon’s upload", kind: "upload" }
+          : null);
+      if (selected) visible = [selected, ...visible.filter(p => p.id !== selected.id)];
     }
-    const remaining = Math.max(0, PHOTOS.length - photoShowCount);
-    const stockHtml = visible.map(p => `
-      <button type="button" class="photo-pick" data-photo="${p.id}" aria-pressed="${selectedIdResolved === p.id}" title="${p.label}">
+    const remaining = Math.max(0, roll.length - photoShowCount);
+    const picksHtml = visible.map(p => `
+      <button type="button" class="photo-pick${p.kind === "upload" ? " library" : ""}" data-photo="${p.id}" aria-pressed="${selectedIdResolved === p.id || post.photo === p.id}" title="${p.label}">
         <img src="${p.src}" alt="${p.label}" loading="lazy">
-      </button>`).join("");
-    const libHtml = lib.map(p => `
-      <button type="button" class="photo-pick library" data-photo="${p.id}" aria-pressed="${post.photo === p.id}" title="${p.label}">
-        <img src="${p.src}" alt="${p.label}">
       </button>`).join("");
     const moreBtn = remaining > 0
       ? `<button type="button" class="photo-pick load-more" id="photoLoadMore" title="Show more photos">Load<br>+${remaining}</button>`
       : "";
-    row.innerHTML = stockHtml + libHtml + moreBtn + `
-      <label class="photo-pick upload" title="Upload photos to keep in this picker">
+    row.innerHTML = picksHtml + moreBtn + `
+      <label class="photo-pick upload" title="Add photos to the gallery">
         Upload
         <input type="file" id="photoUpload" accept="image/*" multiple />
       </label>
     `;
     const note = row.closest(".edit-section")?.querySelector(".photos-note");
     if (note) {
-      const shown = Math.min(photoShowCount, PHOTOS.length);
-      note.textContent = lib.length
-        ? `Showing ${shown} of ${PHOTOS.length} · ${lib.length} saved upload${lib.length === 1 ? "" : "s"}`
-        : `Showing ${shown} of ${PHOTOS.length} photos — Load more for the rest. Uploads stay for reuse.`;
+      const shown = Math.min(photoShowCount, roll.length);
+      note.textContent = uploadCount
+        ? `Gallery: ${shown} of ${roll.length} (${uploadCount} from Jon) — uploads stay on this device.`
+        : `Gallery: ${shown} of ${roll.length} — Upload adds to this roll for reuse.`;
     }
     row.querySelectorAll(".photo-pick[data-photo]").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -1497,7 +1505,7 @@
     const more = document.getElementById("photoLoadMore");
     if (more) {
       more.addEventListener("click", () => {
-        photoShowCount = Math.min(PHOTOS.length, photoShowCount + 12);
+        photoShowCount = Math.min(galleryRoll().length, photoShowCount + 12);
         renderPhotoRow();
         wireInlineEditor();
       });
@@ -1522,6 +1530,8 @@
           st[selectedId].customPhoto = lastId;
           st[selectedId].photo = lastId;
         }
+        // Keep new uploads visible at the front of the roll
+        photoShowCount = Math.max(photoShowCount, PHOTO_PAGE + files.length);
         saveState(st);
         renderPhotoRow();
         wireInlineEditor();
@@ -1529,8 +1539,8 @@
         commitSelected({ silent: true });
         setStudioStatus(
           files.length > 1
-            ? `${files.length} photos saved to Jon’s library.`
-            : "Photo saved to Jon’s library for reuse.",
+            ? `${files.length} photos saved to the gallery.`
+            : "Photo saved to the gallery.",
           "ok"
         );
       } catch (err) {
@@ -1700,16 +1710,18 @@
             const list = SUGGESTIONS[id] || SUGGESTIONS["001"];
             const next = ((state[id].variant || 0) + 1) % list.length;
             const s = list[next];
-            // Rotate through the full stock photo library for visual variety
+            // Rotate through the full gallery roll (Jon’s uploads + stock)
+            const roll = galleryRoll();
             const dayOffset = Math.max(0, SLOTS.findIndex(x => x.id === id));
-            const photoCount = Math.max(PHOTOS.length, 1);
+            const photoCount = Math.max(roll.length, 1);
             const photoIdx = (next * 5 + dayOffset * 11) % photoCount;
-            const photoId = PHOTOS[photoIdx]?.id || s.photo || "stock-001";
+            const picked = roll[photoIdx];
+            const photoId = picked?.id || s.photo || "stock-001";
             const nextPost = {
               ...state[id],
               variant: next,
               photo: photoId,
-              customPhoto: null,
+              customPhoto: String(photoId).startsWith("up-") ? photoId : null,
               line1: s.line1,
               line2: s.line2,
               sub: s.sub,
