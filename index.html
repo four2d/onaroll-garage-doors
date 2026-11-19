@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en-GB">
+<html lang="en-GB" data-view="simple">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <title>On A Roll — This week’s posts</title>
+  <title>On A Roll — Your 3 posts this week</title>
   <style>
     :root{
       --ink:#0b1c28; --muted:#3a4652; --line:#d5dde5; --paper:#e8eef3; --card:#fff;
@@ -551,6 +551,141 @@
     .unlock-card .btn-job{width:100%}
     html:not(.is-unlocked) .app-shell{display:none}
 
+    html.is-unlocked[data-view="simple"] #advancedApp{display:none !important}
+    html.is-unlocked[data-view="advanced"] #simpleApp{display:none !important}
+
+    .simple-app{min-height:100vh; padding-bottom:3rem}
+    .simple-head{
+      background:var(--ink); color:#fff;
+      padding:1.45rem 1.25rem 1.3rem;
+      border-bottom:3px solid var(--blue);
+    }
+    .simple-head .row{max-width:430px; margin:0 auto}
+    .simple-head h1{
+      margin:0; font-size:clamp(1.45rem,6vw,1.85rem); font-weight:750; letter-spacing:-.03em;
+    }
+    .simple-head .sync-status{margin:.45rem 0 0}
+
+    .simple-wrap{max-width:430px; margin:0 auto; padding:1.2rem 1rem 3rem}
+
+    .s-add{
+      appearance:none; width:100%; border:0; cursor:pointer;
+      background:var(--ink); color:#fff; font-weight:750; font-size:1.05rem;
+      padding:1rem 1.1rem; border-radius:14px; min-height:56px;
+      box-shadow:0 4px 16px rgba(11,28,40,.16);
+    }
+    .s-add:hover{filter:brightness(1.06)}
+
+    .s-thanks{
+      margin:.85rem 0 0; padding:.9rem 1rem; background:var(--ok-bg); color:var(--ok);
+      border-radius:12px; font-weight:650; font-size:.95rem;
+    }
+    .s-thanks[hidden]{display:none !important}
+
+    .s-empty{
+      margin:1.5rem 0 0; padding:1.25rem 1.1rem; background:var(--card);
+      border:1px solid var(--line); border-radius:16px; text-align:center;
+    }
+    .s-empty p{margin:0; color:var(--muted); font-size:1.05rem; line-height:1.45}
+
+    .s-stack{display:flex; flex-direction:column; gap:1.35rem; margin:1.25rem 0 0}
+    .s-card{
+      background:var(--card); border:1px solid var(--line); border-radius:18px;
+      box-shadow:var(--shadow); overflow:hidden; padding:0 0 1.05rem;
+    }
+    .s-when{
+      margin:0; padding:.85rem 1rem .15rem; font-size:.88rem; font-weight:700;
+      color:var(--muted);
+    }
+    .s-when.is-ok{color:var(--ok)}
+    .s-shot{
+      margin:.65rem .85rem .35rem; border-radius:14px; overflow:hidden;
+      background:#0a0f14; aspect-ratio:1080/1350;
+    }
+    .s-shot img{display:block; width:100%; height:100%; object-fit:cover}
+    .s-shot .s-stage{width:100%; position:relative; padding-top:125%; overflow:hidden; background:#0a0f14}
+    .s-shot .s-stage > .creative{
+      position:absolute; inset:0; width:1080px; height:1350px; transform-origin:top left;
+    }
+    .s-caption{
+      margin:.55rem 1rem .2rem; font-size:1rem; line-height:1.45; white-space:pre-wrap;
+      color:var(--ink);
+    }
+    .s-actions{display:flex; flex-direction:column; gap:.55rem; padding:.7rem 1rem 0}
+    .s-btn{
+      appearance:none; width:100%; border:0; cursor:pointer; font-weight:750;
+      font-size:1.05rem; padding:.95rem 1rem; border-radius:14px; min-height:54px;
+    }
+    .s-btn:disabled{opacity:.55; cursor:wait}
+    .s-btn-yes{background:var(--ok); color:#fff}
+    .s-btn-yes[aria-pressed="true"]{background:#0f5c38}
+    .s-btn-next, .s-btn-photo{
+      background:#fff; color:var(--ink); border:1.5px solid var(--line);
+    }
+    .s-msg{margin:.55rem 1rem 0; min-height:1.2em; font-size:.9rem; color:var(--muted)}
+    .s-msg.is-ok{color:var(--ok); font-weight:650}
+    .s-msg.is-err{color:#9b2c2c; font-weight:650}
+    .s-edit-link{
+      appearance:none; display:block; margin:.35rem auto 0; padding:.55rem .8rem;
+      border:0; background:none; color:var(--blue-dark); font-weight:700;
+      font-size:.95rem; cursor:pointer; min-height:44px;
+    }
+    .s-edit{padding:.2rem 1rem 0}
+    .s-edit[hidden]{display:none !important}
+    .s-edit textarea{
+      width:100%; min-height:160px; resize:vertical; font:inherit; font-size:1rem;
+      line-height:1.45; border:1.5px solid #c5d0da; border-radius:12px; padding:.85rem;
+    }
+    .s-edit-actions{display:flex; gap:.5rem; margin:.55rem 0 0}
+    .s-edit-actions .s-btn{flex:1; font-size:.95rem; min-height:48px; padding:.75rem}
+    .s-btn-save{background:var(--ink); color:#fff}
+    .s-btn-cancel{background:#fff; color:var(--ink); border:1.5px solid var(--line)}
+
+    .s-foot{margin:1.75rem 0 0; text-align:center}
+    .s-advanced-link, .s-simple-link{
+      appearance:none; border:0; background:none; cursor:pointer;
+      color:var(--muted); font-size:.88rem; font-weight:650;
+      text-decoration:underline; text-underline-offset:3px; min-height:44px; padding:.4rem .6rem;
+    }
+    header .s-simple-link{color:#d7e4ec}
+
+    .s-sheet{
+      position:fixed; inset:0; z-index:70; background:rgba(11,28,40,.46);
+      display:grid; align-items:end; padding:0;
+    }
+    .s-sheet[hidden]{display:none !important}
+    .s-sheet-card{
+      background:var(--card); border-radius:20px 20px 0 0;
+      padding:1.15rem 1.1rem calc(1.3rem + env(safe-area-inset-bottom, 0px));
+      max-height:90vh; overflow:auto;
+    }
+    .s-sheet-card h2{margin:0; font-size:1.2rem; font-weight:750}
+    .s-sheet-card .lead{margin:.35rem 0 .9rem; color:var(--muted); font-size:.95rem}
+    .s-grid{
+      display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem;
+      margin:0 0 1rem;
+    }
+    .s-grid button{
+      appearance:none; border:2px solid transparent; padding:0; border-radius:12px;
+      overflow:hidden; background:#d7dee5; cursor:pointer; aspect-ratio:1;
+    }
+    .s-grid button[aria-pressed="true"]{border-color:var(--blue-dark)}
+    .s-grid img{width:100%; height:100%; object-fit:cover; display:block}
+    .s-file{
+      display:block; width:100%; text-align:center; border:1.5px dashed #b0bdc9;
+      border-radius:14px; padding:1rem; font-weight:750; color:var(--muted);
+      background:#f5f8fb; cursor:pointer; min-height:54px; margin:0 0 .5rem;
+    }
+    .s-file input{display:none}
+    .s-sheet-actions{display:flex; flex-direction:column; gap:.5rem; margin-top:.9rem}
+    .s-preview{
+      width:100%; aspect-ratio:1; border-radius:14px; overflow:hidden; background:#0a0f14;
+      margin:0 0 .85rem; display:none;
+    }
+    .s-preview.is-on{display:block}
+    .s-preview img{width:100%; height:100%; object-fit:cover}
+
+
     .sync-status{
       margin:.55rem 0 0; font-size:.8rem; font-weight:650;
       color:#9fb3c0; min-height:1.15em;
@@ -579,6 +714,9 @@
       try {
         if (localStorage.getItem("oar-jon-board-code")) document.documentElement.classList.add("is-unlocked");
         if (/(?:^#|&)key=/.test(location.hash || "")) document.documentElement.classList.add("is-unlocked");
+        var view = "simple";
+        try { if (localStorage.getItem("oar-jon-view") === "advanced") view = "advanced"; } catch (e) {}
+        document.documentElement.setAttribute("data-view", view);
       } catch (e) {}
     })();
   </script>
@@ -599,18 +737,80 @@
     </div>
   </div>
 
-  <header class="app-shell">
+  <div id="simpleApp" class="app-shell simple-app">
+    <header class="simple-head">
+      <div class="row">
+        <h1>Your 3 posts this week</h1>
+        <p class="sync-status" id="simpleSyncStatus" role="status"></p>
+      </div>
+    </header>
+    <div class="simple-wrap">
+      <button type="button" class="s-add" id="btnAddJobPhoto">Add a job photo</button>
+      <p class="s-thanks" id="simpleThanks" hidden>Thanks – I'll use this in your next posts.</p>
+      <div class="s-empty" id="simpleEmpty" hidden>
+        <p>Your posts will be ready Sunday evening</p>
+      </div>
+      <div class="s-stack" id="simpleStack"></div>
+      <p class="s-foot">
+        <button type="button" class="s-advanced-link" id="btnAdvanced">Advanced editor</button>
+      </p>
+    </div>
+  </div>
+
+  <div id="simpleJobSheet" class="s-sheet" hidden>
+    <div class="s-sheet-card">
+      <h2>Add a job photo</h2>
+      <p class="lead">Snap a photo from a job. A short note helps, like “Grey roller, Ferndown, replaced old up-and-over”.</p>
+      <div class="s-preview" id="simpleJobPreview"><img id="simpleJobPreviewImg" alt=""></div>
+      <label class="s-file">Take a photo
+        <input type="file" id="simpleJobCamera" accept="image/*" capture="environment" />
+      </label>
+      <label class="s-file">Upload a photo
+        <input type="file" id="simpleJobUpload" accept="image/*" />
+      </label>
+      <div class="field">
+        <label for="simpleJobNote">Note (optional)</label>
+        <input id="simpleJobNote" type="text" maxlength="160" autocomplete="off" placeholder="Grey roller, Ferndown, replaced old up-and-over" />
+      </div>
+      <div class="s-sheet-actions">
+        <button type="button" class="s-btn s-btn-yes" id="simpleJobSend">Send</button>
+        <button type="button" class="s-btn s-btn-cancel" id="simpleJobCancel">Cancel</button>
+      </div>
+      <p class="s-msg" id="simpleJobMsg" role="status"></p>
+    </div>
+  </div>
+
+  <div id="simplePhotoSheet" class="s-sheet" hidden>
+    <div class="s-sheet-card">
+      <h2>Change photo</h2>
+      <p class="lead">Pick one of your photos, or take a new one.</p>
+      <div class="s-grid" id="simplePhotoGrid"></div>
+      <label class="s-file">Take a photo
+        <input type="file" id="simplePhotoCamera" accept="image/*" capture="environment" />
+      </label>
+      <label class="s-file">Upload a photo
+        <input type="file" id="simplePhotoUpload" accept="image/*" />
+      </label>
+      <div class="s-sheet-actions">
+        <button type="button" class="s-btn s-btn-cancel" id="simplePhotoClose">Close</button>
+      </div>
+      <p class="s-msg" id="simplePhotoMsg" role="status"></p>
+    </div>
+  </div>
+
+  <div id="advancedApp" class="app-shell">
+  <header>
     <div class="row">
       <div>
-        <h1>This week’s posts <span class="pill" id="verPill">v45</span></h1>
+        <h1>This week’s posts <span class="pill" id="verPill">v46</span></h1>
         <p>This week’s posts are ready – review, edit, approve. Nothing goes live until they’re published.</p>
         <p class="sync-status" id="syncStatus" role="status"></p>
-        <p class="head-nav"><a href="archive/">Past weeks</a></p>
+        <p class="head-nav"><a href="archive/">Past weeks</a> · <button type="button" class="s-simple-link" id="btnSimpleView">Simple view</button></p>
       </div>
     </div>
   </header>
 
-  <div class="wrap app-shell">
+  <div class="wrap">
     <div class="week-bar" id="weekBar" aria-label="Week progress"></div>
 
     <div class="board-head" id="boardHead">
@@ -689,6 +889,7 @@
       </div>
     </div>
   </div>
+  </div>
 
   <script>
   const KEY = "oar-jon-board-v27";
@@ -702,7 +903,9 @@
   const LIBRARY_SOFT_CAP = 40;
   const API_BASE = "https://onaroll-posts.dent-pete.workers.dev";
   const CODE_KEY = "oar-jon-board-code";
+  const VIEW_KEY = "oar-jon-view";
   const PENDING_PHOTOS_KEY = "oar-jon-pending-photos-v1";
+  const PENDING_NOTES_KEY = "oar-jon-pending-notes-v1";
 
   // Stock pack — loaded from photos/manifest.json (FB exports + installs). Keep text overlays as-is.
   let PHOTOS = [
@@ -1027,6 +1230,7 @@
     lastLocalSnap = snapshotPosts(state);
     renderSummary(state);
     if (opts.sync !== false) scheduleBoardPush();
+    if (opts.simple !== false && getView() === "simple") renderSimple(state);
   }
 
   function priceFromOf(post) {
@@ -2767,15 +2971,17 @@
   }
 
   function setSyncStatus(kind) {
-    const el = document.getElementById("syncStatus");
-    if (!el) return;
     const labels = {
       synced: "Synced",
       saving: "Saving…",
       offline: "Offline – will sync",
     };
-    el.textContent = labels[kind] || "";
-    el.className = "sync-status" + (kind === "synced" ? " is-ok" : kind === "saving" ? " is-pending" : kind === "offline" ? " is-off" : "");
+    const text = labels[kind] || "";
+    const cls = "sync-status" + (kind === "synced" ? " is-ok" : kind === "saving" ? " is-pending" : kind === "offline" ? " is-off" : "");
+    document.querySelectorAll(".sync-status").forEach(el => {
+      el.textContent = text;
+      el.className = cls;
+    });
   }
 
   async function api(method, path, opts = {}) {
@@ -2840,7 +3046,7 @@
     setSyncStatus("saving");
     try {
       if (editorOpen) commitSelected({ silent: true, skipSync: true });
-      const payload = boardPayload(ensureState());
+      const payload = boardPayload(loadState());
       const res = await api("PUT", "/board", { body: payload, base: boardBase || undefined });
       if (res.status === 401 || res.status === 403) {
         showUnlock("That code didn’t work. Try again.");
@@ -2850,9 +3056,10 @@
         const data = await res.json().catch(() => ({}));
         const current = data.current || {};
         if (editorOpen) commitSelected({ silent: true, skipSync: true });
-        const merged = mergeBoards(ensureState(), current);
+        const merged = mergeBoards(loadState(), current);
         boardBase = current.updatedAt || null;
         saveState(merged, { sync: false, touch: false });
+        renderCurrentView(merged);
         renderWeekBar(merged);
         if (editorOpen) {
           fillFormFromPost(merged[selectedId] || defaultPost(selectedId));
@@ -2869,9 +3076,9 @@
       if (!res.ok) throw new Error("sync failed");
       const saved = await res.json();
       boardBase = saved.updatedAt || boardBase;
-      const st = ensureState();
+      const st = loadState();
       st.updatedAt = boardBase;
-      saveState(st, { sync: false, touch: false });
+      saveState(st, { sync: false, touch: false, simple: false });
       syncRetries = 0;
       setSyncStatus("synced");
     } catch (err) {
@@ -2892,15 +3099,20 @@
     }
     if (!res.ok) throw new Error("board fetch failed");
     const remote = await res.json();
-    if (!remote || !remote.updatedAt) {
-      boardBase = null;
-      return { empty: true };
+    const remoteHasPosts = !!(remote && SLOTS.some(s => remote[s.id] && String(remote[s.id].line1 || "").trim()));
+    if (!remote || !remote.updatedAt || !remoteHasPosts) {
+      boardBase = remote && remote.updatedAt ? remote.updatedAt : null;
+      const cleaned = { ...loadState() };
+      for (const s of SLOTS) delete cleaned[s.id];
+      saveState(cleaned, { sync: false, touch: false, simple: false });
+      lastLocalSnap = snapshotPosts(cleaned);
+      return { empty: true, localNewer: false };
     }
     boardBase = remote.updatedAt;
     const local = loadState();
     const merged = mergeBoards(local, remote);
     const localNewer = SLOTS.some(s => postTime(merged[s.id]) > postTime(remote[s.id]));
-    saveState(merged, { sync: false, touch: false });
+    saveState(merged, { sync: false, touch: false, simple: false });
     lastLocalSnap = snapshotPosts(merged);
     return { empty: false, localNewer };
   }
@@ -2987,7 +3199,7 @@
     const pending = loadPendingPhotos();
     if (!pending.length || !navigator.onLine || !getBoardCode()) return;
     const leftover = [];
-    const state = ensureState();
+    const state = loadState();
     let changed = false;
     for (const item of pending) {
       try {
@@ -3005,6 +3217,399 @@
     if (changed) saveState(state);
   }
 
+
+  /* —— Simple view for Jon —— */
+  function getView() {
+    try { return localStorage.getItem(VIEW_KEY) === "advanced" ? "advanced" : "simple"; }
+    catch { return "simple"; }
+  }
+  function applyViewClass() {
+    document.documentElement.setAttribute("data-view", getView());
+  }
+  function setView(view) {
+    const v = view === "advanced" ? "advanced" : "simple";
+    try { localStorage.setItem(VIEW_KEY, v); } catch {}
+    document.documentElement.setAttribute("data-view", v);
+    if (v === "advanced") {
+      const st = ensureState();
+      lastLocalSnap = snapshotPosts(st);
+      renderWeekBar(st);
+      renderAll(st);
+      scaleCardCreatives();
+    } else {
+      closeSimpleSheets();
+      renderSimple(loadState());
+    }
+  }
+
+  function isPlaceholderPost(post, slotId) {
+    if (!post || !String(post.line1 || "").trim()) return true;
+    if (post.source === "job" || post.status === "approved" || post.generated) return false;
+    const def = SUGGESTIONS[slotId] && SUGGESTIONS[slotId][0];
+    return !!(def && post.line1 === def.line1 && post.line2 === def.line2);
+  }
+  function localHasRealPosts(state) {
+    return SLOTS.some(s => state[s.id] && !isPlaceholderPost(state[s.id], s.id));
+  }
+  function weekPosts(state) {
+    return SLOTS.filter(s => state[s.id] && !isPlaceholderPost(state[s.id], s.id));
+  }
+
+  function postingLine(slot, post) {
+    const when = `${slot.day} 12:00`;
+    return post?.status === "approved" ? `Approved – goes out ${when}` : `Goes out ${when}`;
+  }
+
+  function renderCurrentView(state) {
+    applyViewClass();
+    if (getView() === "advanced") {
+      const adv = ensureState();
+      renderWeekBar(adv);
+      renderAll(adv);
+      scaleCardCreatives();
+    } else {
+      renderSimple(state || loadState());
+    }
+  }
+
+  let simpleBakeToken = 0;
+  function renderSimple(state) {
+    const stack = document.getElementById("simpleStack");
+    const empty = document.getElementById("simpleEmpty");
+    if (!stack || !empty) return;
+    const st = state || loadState();
+    const ready = weekPosts(st);
+    empty.hidden = ready.length > 0;
+    if (!ready.length) {
+      stack.innerHTML = "";
+      return;
+    }
+    stack.innerHTML = ready.map(slot => simpleCardHTML(slot, st[slot.id])).join("");
+    stack.querySelectorAll(".s-shot .s-stage").forEach(stage => {
+      const w = stage.clientWidth || stage.parentElement.clientWidth;
+      const c = stage.querySelector(".creative");
+      if (c && w) c.style.transform = `scale(${w / 1080})`;
+    });
+    const token = ++simpleBakeToken;
+    ready.forEach(slot => bakeSimpleShot(slot.id, st[slot.id], token));
+  }
+
+  function simpleCardHTML(slot, post) {
+    const approved = post.status === "approved";
+    return `
+      <article class="s-card" data-simple-card="${slot.id}">
+        <p class="s-when${approved ? " is-ok" : ""}">${escapeHTML(postingLine(slot, post))}</p>
+        <div class="s-shot" data-shot>
+          <div class="s-stage">${creativeHTML(post, "fb")}</div>
+        </div>
+        <p class="s-caption">${escapeHTML(post.caption || "")}</p>
+        <div class="s-actions">
+          <button type="button" class="s-btn s-btn-yes" data-simple="approve" aria-pressed="${approved ? "true" : "false"}">${approved ? "Looks good ✓" : "Looks good ✓"}</button>
+          <button type="button" class="s-btn s-btn-next" data-simple="regen">Try another</button>
+          <button type="button" class="s-btn s-btn-photo" data-simple="photo">Change photo</button>
+        </div>
+        <p class="s-msg" data-simple-msg></p>
+        <button type="button" class="s-edit-link" data-simple="edit">Edit words</button>
+        <div class="s-edit" data-simple-edit hidden>
+          <label class="sr-only" for="simpleCaption-${slot.id}">Caption</label>
+          <textarea id="simpleCaption-${slot.id}" maxlength="2200">${escapeHTML(post.caption || "")}</textarea>
+          <div class="s-edit-actions">
+            <button type="button" class="s-btn s-btn-save" data-simple="save-words">Save</button>
+            <button type="button" class="s-btn s-btn-cancel" data-simple="cancel-words">Cancel</button>
+          </div>
+        </div>
+      </article>`;
+  }
+
+  async function bakeSimpleShot(id, post, token) {
+    const shot = document.querySelector(`[data-simple-card="${id}"] [data-shot]`);
+    if (!shot) return;
+    try {
+      const url = await bake(post, "fb");
+      if (token !== simpleBakeToken) return;
+      const live = document.querySelector(`[data-simple-card="${id}"] [data-shot]`);
+      if (!live) return;
+      live.innerHTML = `<img src="${url}" alt="">`;
+    } catch (err) {
+      console.warn("simple bake", err);
+    }
+  }
+
+  function setSimpleMsg(id, text, kind) {
+    const el = document.querySelector(`[data-simple-card="${id}"] [data-simple-msg]`);
+    if (!el) return;
+    el.textContent = text || "";
+    el.className = "s-msg" + (kind ? " " + kind : "");
+  }
+
+  function closeSimpleSheets() {
+    const job = document.getElementById("simpleJobSheet");
+    const photo = document.getElementById("simplePhotoSheet");
+    if (job) job.hidden = true;
+    if (photo) photo.hidden = true;
+  }
+
+  function approveSimple(id) {
+    const state = loadState();
+    if (!state[id]) return;
+    state[id].status = "approved";
+    saveState(state);
+    setSimpleMsg(id, "Nice one — that’s approved.", "is-ok");
+  }
+
+  async function regenerateSimple(id) {
+    const slot = SLOTS.find(s => s.id === id);
+    const day = (slot?.day || id).toLowerCase();
+    const btn = document.querySelector(`[data-simple-card="${id}"] [data-simple="regen"]`);
+    if (btn) btn.disabled = true;
+    setSimpleMsg(id, "Finding another idea…");
+    try {
+      const res = await api("POST", `/regenerate/${encodeURIComponent(day)}`, { body: { id, day } });
+      if (res.status === 404 || res.status === 405 || res.status === 501) {
+        setSimpleMsg(id, "Coming soon");
+        return;
+      }
+      if (!res.ok) throw new Error("regenerate failed");
+      const data = await res.json();
+      const incoming = data.post || data[id] || (data.line1 ? data : null);
+      if (data && data.updatedAt && (data["001"] || data["002"] || data["003"])) {
+        const merged = mergeBoards(loadState(), data);
+        if (data.updatedAt) boardBase = data.updatedAt;
+        saveState(merged, { sync: false, touch: false });
+        return;
+      }
+      if (!incoming || !incoming.line1) throw new Error("no post returned");
+      const state = loadState();
+      state[id] = { ...(state[id] || {}), ...incoming, status: "awaiting", generated: true };
+      saveState(state);
+    } catch (err) {
+      console.warn("regenerate", err);
+      const missing = err instanceof TypeError || /failed to fetch|404|not found/i.test(String(err && err.message));
+      setSimpleMsg(id, missing ? "Coming soon" : "Couldn’t get another idea just now. Try again in a moment.", missing ? "" : "is-err");
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  let photoTargetId = null;
+  function openPhotoSheet(id) {
+    photoTargetId = id;
+    const sheet = document.getElementById("simplePhotoSheet");
+    const grid = document.getElementById("simplePhotoGrid");
+    const msg = document.getElementById("simplePhotoMsg");
+    if (!sheet || !grid) return;
+    if (msg) msg.textContent = "";
+    const state = loadState();
+    const post = state[id] || {};
+    const roll = galleryRoll();
+    grid.innerHTML = roll.map(p => `
+      <button type="button" data-photo="${p.id}" aria-pressed="${post.photo === p.id || post.customPhoto === p.id}" title="${p.label}">
+        <img src="${p.src}" alt="${p.label}">
+      </button>`).join("");
+    grid.querySelectorAll("[data-photo]").forEach(btn => {
+      btn.addEventListener("click", () => applySimplePhoto(id, btn.dataset.photo));
+    });
+    sheet.hidden = false;
+  }
+
+  function applySimplePhoto(id, photoId) {
+    if (!id || !photoId) return;
+    const state = loadState();
+    if (!state[id]) return;
+    const isUpload = String(photoId).startsWith("up-") || !!(galleryRoll().find(p => p.id === photoId && p.kind === "upload"));
+    state[id].photo = photoId;
+    state[id].customPhoto = isUpload ? photoId : null;
+    state[id].afterPhoto = isUpload ? photoId : null;
+    saveState(state);
+    closeSimpleSheets();
+  }
+
+  async function uploadSimplePhoto(id, file) {
+    const msg = document.getElementById("simplePhotoMsg");
+    if (msg) msg.textContent = "Saving photo…";
+    try {
+      const dataUrl = await compressUpload(file);
+      const photoId = await storeUpload(dataUrl, file.name);
+      applySimplePhoto(id, photoId);
+    } catch (err) {
+      console.warn(err);
+      if (msg) {
+        msg.textContent = "Couldn’t use that photo. Try a JPG or PNG.";
+        msg.className = "s-msg is-err";
+      }
+    }
+  }
+
+  function openCaptionEditor(id) {
+    const card = document.querySelector(`[data-simple-card="${id}"]`);
+    if (!card) return;
+    const panel = card.querySelector("[data-simple-edit]");
+    if (panel) {
+      panel.hidden = false;
+      const area = panel.querySelector("textarea");
+      if (area) area.focus();
+    }
+  }
+
+  function saveSimpleCaption(id) {
+    const area = document.getElementById(`simpleCaption-${id}`);
+    const state = loadState();
+    if (!state[id] || !area) return;
+    state[id].caption = area.value;
+    saveState(state);
+    setSimpleMsg(id, "Words saved.", "is-ok");
+  }
+
+  let simpleJobPhotoId = null;
+  let simpleJobPreviewUrl = "";
+  function resetJobSheet() {
+    simpleJobPhotoId = null;
+    simpleJobPreviewUrl = "";
+    const img = document.getElementById("simpleJobPreviewImg");
+    const wrap = document.getElementById("simpleJobPreview");
+    const note = document.getElementById("simpleJobNote");
+    const msg = document.getElementById("simpleJobMsg");
+    const cam = document.getElementById("simpleJobCamera");
+    const up = document.getElementById("simpleJobUpload");
+    const send = document.getElementById("simpleJobSend");
+    if (img) img.removeAttribute("src");
+    if (wrap) wrap.classList.remove("is-on");
+    if (note) note.value = "";
+    if (msg) { msg.textContent = ""; msg.className = "s-msg"; }
+    if (cam) cam.value = "";
+    if (up) up.value = "";
+    if (send) send.disabled = true;
+  }
+  function openJobSheet() {
+    resetJobSheet();
+    const thanks = document.getElementById("simpleThanks");
+    if (thanks) thanks.hidden = true;
+    const sheet = document.getElementById("simpleJobSheet");
+    if (sheet) sheet.hidden = false;
+  }
+  async function pickJobFile(file) {
+    const msg = document.getElementById("simpleJobMsg");
+    const send = document.getElementById("simpleJobSend");
+    if (!file) return;
+    if (send) send.disabled = true;
+    if (msg) { msg.textContent = "Saving photo…"; msg.className = "s-msg"; }
+    try {
+      const dataUrl = await compressUpload(file);
+      simpleJobPreviewUrl = dataUrl;
+      const img = document.getElementById("simpleJobPreviewImg");
+      const wrap = document.getElementById("simpleJobPreview");
+      if (img) img.src = dataUrl;
+      if (wrap) wrap.classList.add("is-on");
+      simpleJobPhotoId = await storeUpload(dataUrl, file.name);
+      if (msg) msg.textContent = "";
+    } catch (err) {
+      console.warn(err);
+      simpleJobPhotoId = null;
+      if (msg) { msg.textContent = "Couldn’t use that photo. Try a JPG or PNG."; msg.className = "s-msg is-err"; }
+    } finally {
+      if (send) send.disabled = !simpleJobPhotoId;
+    }
+  }
+
+  function loadPendingNotes() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(PENDING_NOTES_KEY) || "[]");
+      return Array.isArray(raw) ? raw : [];
+    } catch { return []; }
+  }
+  function savePendingNotes(list) {
+    try {
+      if (!list.length) localStorage.removeItem(PENDING_NOTES_KEY);
+      else localStorage.setItem(PENDING_NOTES_KEY, JSON.stringify(list));
+    } catch (err) { console.warn("pending notes", err); }
+  }
+  async function postNote(payload) {
+    const res = await api("POST", "/notes", { body: payload });
+    if (res.status === 404) return { pending: true, comingSoon: true };
+    if (!res.ok) return { pending: true };
+    return { ok: true };
+  }
+  async function flushPendingNotes() {
+    const pending = loadPendingNotes();
+    if (!pending.length || !navigator.onLine || !getBoardCode()) return;
+    const leftover = [];
+    for (const item of pending) {
+      try {
+        const result = await postNote(item);
+        if (!result.ok) leftover.push(item);
+      } catch {
+        leftover.push(item);
+      }
+    }
+    savePendingNotes(leftover);
+  }
+  async function sendJobNote() {
+    const msg = document.getElementById("simpleJobMsg");
+    const note = String(document.getElementById("simpleJobNote")?.value || "").trim();
+    if (!simpleJobPhotoId) {
+      if (msg) { msg.textContent = "Add a photo first."; msg.className = "s-msg is-err"; }
+      return;
+    }
+    const payload = {
+      note,
+      photoId: simpleJobPhotoId || null,
+      createdAt: new Date().toISOString()
+    };
+    if (note || simpleJobPhotoId) {
+      try {
+        const result = await postNote(payload);
+        if (!result.ok) {
+          const pending = loadPendingNotes();
+          pending.push(payload);
+          savePendingNotes(pending);
+        }
+      } catch (err) {
+        console.warn("note", err);
+        const pending = loadPendingNotes();
+        pending.push(payload);
+        savePendingNotes(pending);
+      }
+    }
+    closeSimpleSheets();
+    const thanks = document.getElementById("simpleThanks");
+    if (thanks) thanks.hidden = false;
+  }
+
+  function wireSimpleView() {
+    document.getElementById("btnAdvanced")?.addEventListener("click", () => setView("advanced"));
+    document.getElementById("btnSimpleView")?.addEventListener("click", () => setView("simple"));
+    document.getElementById("btnAddJobPhoto")?.addEventListener("click", openJobSheet);
+    document.getElementById("simpleJobCancel")?.addEventListener("click", () => closeSimpleSheets());
+    document.getElementById("simplePhotoClose")?.addEventListener("click", () => closeSimpleSheets());
+    document.getElementById("simpleJobSend")?.addEventListener("click", sendJobNote);
+    document.getElementById("simpleJobCamera")?.addEventListener("change", e => pickJobFile(e.target.files?.[0]));
+    document.getElementById("simpleJobUpload")?.addEventListener("change", e => pickJobFile(e.target.files?.[0]));
+    document.getElementById("simplePhotoCamera")?.addEventListener("change", e => {
+      const file = e.target.files?.[0];
+      if (file) uploadSimplePhoto(photoTargetId, file);
+    });
+    document.getElementById("simplePhotoUpload")?.addEventListener("change", e => {
+      const file = e.target.files?.[0];
+      if (file) uploadSimplePhoto(photoTargetId, file);
+    });
+    document.getElementById("simpleStack")?.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-simple]");
+      const card = e.target.closest("[data-simple-card]");
+      if (!btn || !card) return;
+      const id = card.getAttribute("data-simple-card");
+      const action = btn.getAttribute("data-simple");
+      if (action === "approve") approveSimple(id);
+      if (action === "regen") regenerateSimple(id);
+      if (action === "photo") openPhotoSheet(id);
+      if (action === "edit") openCaptionEditor(id);
+      if (action === "save-words") saveSimpleCaption(id);
+      if (action === "cancel-words") {
+        const panel = card.querySelector("[data-simple-edit]");
+        if (panel) panel.hidden = true;
+      }
+    });
+  }
+
   async function startApp() {
     hideUnlock();
     hydrateLibrary();
@@ -3013,8 +3618,10 @@
     try {
       await loadRemotePhotos();
       await flushPendingPhotos();
+      await flushPendingNotes();
       pulled = await pullBoard();
-      if (pulled.localNewer || pulled.empty) scheduleBoardPush();
+      const localReal = localHasRealPosts(loadState());
+      if (pulled.localNewer || (pulled.empty && localReal)) scheduleBoardPush();
       else setSyncStatus("synced");
     } catch (err) {
       if (err && err.message === "unauthorized") return;
@@ -3022,29 +3629,30 @@
       setSyncStatus("offline");
     }
 
-    const state = ensureState();
+    const localReal = localHasRealPosts(loadState()) || !pulled.empty;
+    const state = localReal ? ensureState() : loadState();
     for (const slot of SLOTS) {
       const item = state[slot.id];
       if (item?.photo && PHOTO_ALIASES[item.photo]) item.photo = PHOTO_ALIASES[item.photo];
     }
     if (state._uploads) Object.assign(uploadCache, state._uploads);
     lastLocalSnap = snapshotPosts(state);
-    saveState(state, { sync: pulled.empty || pulled.localNewer, touch: false });
+    if (localReal) saveState(state, { sync: pulled.empty || pulled.localNewer, touch: false, simple: false });
 
     selectedId = "001";
     editorOpen = false;
     if (!appStarted) {
       wireJobComposer();
+      wireSimpleView();
       window.addEventListener("resize", () => scaleCardCreatives());
       window.addEventListener("online", () => {
         setSyncStatus("saving");
-        flushPendingPhotos().then(() => scheduleBoardPush());
+        Promise.all([flushPendingPhotos(), flushPendingNotes()]).then(() => scheduleBoardPush());
       });
       window.addEventListener("offline", () => setSyncStatus("offline"));
       appStarted = true;
     }
-    renderWeekBar(state);
-    renderAll(state);
+    renderCurrentView(state);
 
     try {
       await Promise.all([LOGO, ...PHOTOS.slice(0, 12).map(p => p.src)].map(loadImage));
