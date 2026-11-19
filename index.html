@@ -477,7 +477,7 @@
   <header>
     <div class="row">
       <div>
-        <h1>This week’s posts <span class="pill" id="verPill">v42</span></h1>
+        <h1>This week’s posts <span class="pill" id="verPill">v43</span></h1>
         <p>Tap <strong>Approve</strong> on each post — or Edit / Change if you want a tweak. Nothing goes live until Pete publishes.</p>
         <p class="head-nav"><a href="archive/">Past weeks</a></p>
       </div>
@@ -529,25 +529,107 @@
 
   const LIBRARY_KEY = "oar-jon-photo-library-v1";
 
+  // Copy packs per day — Change cycles these AND rotates through the full photo library
   const SUGGESTIONS = {
     "001": [
-      { line1: "Stop living", line2: "with that door.", sub: "Made-to-measure aluminium rollers. Fitted in about half a day.", photo: "stock-001" },
-      { line1: "Your old door", line2: "is costing you.", sub: "Quiet, insulated, remote-controlled. Local fit in about half a day.", photo: "stock-001" },
-      { line1: "Half a day.", line2: "New door.", sub: "Made to measure. Old door recycled. Family-run in Poole.", photo: "stock-001" },
-      { line1: "Match the house.", line2: "Not near enough.", sub: "Colour-matched aluminium rollers, fitted tidy, local team.", photo: "stock-001" }
-    ],
+      { line1: "Stop living", line2: "with that door." },
+      { line1: "Your old door", line2: "is costing you." },
+      { line1: "Half a day.", line2: "New door." },
+      { line1: "Match the house.", line2: "Not near enough." },
+      { line1: "Quiet.", line2: "Insulated. Remote." },
+      { line1: "Made to measure.", line2: "Fitted tidy." },
+      { line1: "That door’s had", line2: "its day." },
+      { line1: "Upgrade once.", line2: "Enjoy every day." },
+      { line1: "Roller doors", line2: "done properly." },
+      { line1: "Smooth open.", line2: "Solid close." },
+      { line1: "New door.", line2: "Same driveway." },
+      { line1: "From stuck", line2: "to seamless." },
+      { line1: "Aluminium rollers.", line2: "Built for Dorset." },
+      { line1: "Kerbside wow.", line2: "Everyday easy." },
+      { line1: "Old door out.", line2: "New door in." },
+      { line1: "Colour-matched.", line2: "Locally fitted." },
+      { line1: "One morning.", line2: "Done for years." },
+      { line1: "No more wrestling", line2: "the garage door." },
+      { line1: "Remote from", line2: "the driveway." },
+      { line1: "The upgrade", line2: "you’ll notice daily." }
+    ].map((s, i) => ({
+      ...s,
+      sub: [
+        "Made-to-measure aluminium rollers. Fitted in about half a day.",
+        "Quiet, insulated, remote-controlled. Local fit in about half a day.",
+        "Made to measure. Old door recycled. Family-run in Poole.",
+        "Colour-matched aluminium rollers, fitted tidy, local team.",
+        "Electric rollers that run smooth and look the part.",
+        "Straight quote. Free survey. Typical fit about half a day."
+      ][i % 6],
+      photo: "stock-001"
+    })),
     "002": [
-      { line1: "Your garage", line2: "is an open invite.", sub: "Electric rollers lock into the guides — no handle for thieves to force.", photo: "stock-002" },
-      { line1: "Thieves check", line2: "the garage first.", sub: "Upgrade to a remote roller that locks into the side guides.", photo: "stock-002" },
-      { line1: "Secure it.", line2: "Remote it.", sub: "Modern electric rollers. Local install. No hard sell.", photo: "stock-002" },
-      { line1: "No handle.", line2: "No easy way in.", sub: "That’s the point of a modern electric roller.", photo: "stock-002" }
-    ],
+      { line1: "Your garage", line2: "is an open invite." },
+      { line1: "Thieves check", line2: "the garage first." },
+      { line1: "Secure it.", line2: "Remote it." },
+      { line1: "No handle.", line2: "No easy way in." },
+      { line1: "Lock into", line2: "the side guides." },
+      { line1: "Garage first.", line2: "House next." },
+      { line1: "Stop the", line2: "easy entry." },
+      { line1: "Modern rollers.", line2: "Serious security." },
+      { line1: "Remote lock.", line2: "Peace of mind." },
+      { line1: "Don’t leave", line2: "the weak spot." },
+      { line1: "Guide-locked.", line2: "Harder to force." },
+      { line1: "Secure the", line2: "whole home." },
+      { line1: "Electric. Locked.", line2: "Locally fitted." },
+      { line1: "No forced handle.", line2: "No quick win." },
+      { line1: "Upgrade the", line2: "first target." },
+      { line1: "Stronger door.", line2: "Safer home." },
+      { line1: "Night-time worry?", line2: "Sort the garage." },
+      { line1: "Rollers that", line2: "lock as they close." },
+      { line1: "Security without", line2: "the hard sell." },
+      { line1: "Close it.", line2: "Trust it." }
+    ].map((s, i) => ({
+      ...s,
+      sub: [
+        "Electric rollers lock into the guides — no handle for thieves to force.",
+        "Upgrade to a remote roller that locks into the side guides.",
+        "Modern electric rollers. Local install. No hard sell.",
+        "That’s the point of a modern electric roller.",
+        "Family-run in Poole. Free survey across Dorset.",
+        "Straight talk on security — and a door that looks the part."
+      ][i % 6],
+      photo: "stock-002"
+    })),
     "003": [
-      { line1: "Don’t overpay", line2: "for a garage door.", sub: "Local Poole fitters. Straight quote. Free survey.", photo: "stock-003" },
-      { line1: "Local fitters.", line2: "Honest price.", sub: "Poole, Bournemouth, Christchurch & Dorset. Free survey.", photo: "stock-003" },
-      { line1: "Ready for a", line2: "new garage door?", sub: "Book a free survey this week. Typical fit about half a day.", photo: "stock-003" },
-      { line1: "A better door.", line2: "A fair price.", sub: "Family-run in Poole since 2014. Free survey, no hard sell.", photo: "stock-003" }
-    ]
+      { line1: "Don’t overpay", line2: "for a garage door." },
+      { line1: "Local fitters.", line2: "Honest price." },
+      { line1: "Ready for a", line2: "new garage door?" },
+      { line1: "A better door.", line2: "A fair price." },
+      { line1: "Free survey.", line2: "Straight quote." },
+      { line1: "Poole-based.", line2: "Dorset-wide." },
+      { line1: "Family-run", line2: "since 2014." },
+      { line1: "No hard sell.", line2: "Just good doors." },
+      { line1: "Book the survey.", line2: "Get the price." },
+      { line1: "Local team.", line2: "Clear costs." },
+      { line1: "Quality fit.", line2: "Sensible money." },
+      { line1: "From £1,250.", line2: "Fitted locally." },
+      { line1: "Ask the locals.", line2: "Then call us." },
+      { line1: "Survey this week.", line2: "Fit soon after." },
+      { line1: "Honest quote.", line2: "Tidy install." },
+      { line1: "Dorset’s door", line2: "people." },
+      { line1: "Skip the", line2: "national chains." },
+      { line1: "Fair price.", line2: "Proper job." },
+      { line1: "One call.", line2: "Clear next steps." },
+      { line1: "Ready when", line2: "you are." }
+    ].map((s, i) => ({
+      ...s,
+      sub: [
+        "Local Poole fitters. Straight quote. Free survey.",
+        "Poole, Bournemouth, Christchurch & Dorset. Free survey.",
+        "Book a free survey this week. Typical fit about half a day.",
+        "Family-run in Poole since 2014. Free survey, no hard sell.",
+        "Made-to-measure rollers. Clear pricing. Local team.",
+        "From £1,250. Free survey → 01202 553603."
+      ][i % 6],
+      photo: "stock-003"
+    }))
   };
 
   const SLOTS = [
@@ -1615,27 +1697,36 @@
             openEditor(id);
           }
           if (action === "change") {
-            const list = SUGGESTIONS[id];
+            const list = SUGGESTIONS[id] || SUGGESTIONS["001"];
             const next = ((state[id].variant || 0) + 1) % list.length;
             const s = list[next];
-            state[id].variant = next;
-            state[id].photo = s.photo;
-            state[id].customPhoto = null;
-            state[id].line1 = s.line1;
-            state[id].line2 = s.line2;
-            state[id].sub = s.sub;
-            state[id].cta = DEFAULT_CTA;
-            state[id].caption = buildCaption(s, id);
-            state[id].status = "awaiting";
+            // Rotate through the full stock photo library for visual variety
+            const dayOffset = Math.max(0, SLOTS.findIndex(x => x.id === id));
+            const photoCount = Math.max(PHOTOS.length, 1);
+            const photoIdx = (next * 5 + dayOffset * 11) % photoCount;
+            const photoId = PHOTOS[photoIdx]?.id || s.photo || "stock-001";
+            const nextPost = {
+              ...state[id],
+              variant: next,
+              photo: photoId,
+              customPhoto: null,
+              line1: s.line1,
+              line2: s.line2,
+              sub: s.sub,
+              cta: DEFAULT_CTA,
+              status: "awaiting"
+            };
+            nextPost.caption = buildCaption(nextPost, id);
+            state[id] = nextPost;
             saveState(state);
+            const ideaLabel = `Idea ${next + 1} of ${list.length}`;
             if (editorOpen && id === selectedId) {
               fillFormFromPost(state[id]);
               renderPhotoRow();
               refreshCardCreative();
-              setStudioStatus("New suggestion loaded — keep editing or tap Done.", "ok");
+              setStudioStatus(`${ideaLabel} — new photo + copy. Keep editing or tap Done.`, "ok");
               renderWeekBar(state);
             } else if (editorOpen) {
-              // editing a different card — refresh this one via full render then reopen editor
               const editingId = selectedId;
               editorOpen = false;
               renderAll(state);
@@ -1645,7 +1736,7 @@
               renderAll(state);
               renderWeekBar(state);
               const hint = document.querySelector(`.fb[data-id="${id}"] [data-hint]`);
-              if (hint) hint.textContent = "New suggestion loaded.";
+              if (hint) hint.textContent = `${ideaLabel} — tap Change again for another.`;
             }
           }
         });
