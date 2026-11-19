@@ -587,6 +587,14 @@
       border:1px solid var(--line); border-radius:16px; text-align:center;
     }
     .s-empty p{margin:0; color:var(--muted); font-size:1.05rem; line-height:1.45}
+    .simple-wrap{position:relative; min-height:12rem}
+    .s-page-busy{
+      position:relative; margin:1.5rem 0 0; min-height:14rem;
+      display:flex; align-items:center; justify-content:center;
+      background:rgba(247,249,251,.92); border:1px solid var(--line);
+      border-radius:16px; padding:2rem 1.2rem;
+    }
+    .s-page-busy[hidden]{display:none !important}
 
     .s-stack{display:flex; flex-direction:column; gap:1.35rem; margin:1.25rem 0 0}
     .s-card{
@@ -763,7 +771,7 @@
   <div id="simpleApp" class="app-shell simple-app">
     <header class="simple-head">
       <div class="row">
-        <h1>Your 3 posts this week</h1>
+        <h1>Your 3 posts</h1>
         <p class="sync-status" id="simpleSyncStatus" role="status"></p>
       </div>
     </header>
@@ -771,7 +779,13 @@
       <button type="button" class="s-add" id="btnAddJobPhoto">Add a job photo</button>
       <p class="s-thanks" id="simpleThanks" hidden>Thanks – I'll use this in your next posts.</p>
       <div class="s-empty" id="simpleEmpty" hidden>
-        <p>Your posts will be ready Sunday evening</p>
+        <p id="simpleEmptyText">Writing your posts…</p>
+      </div>
+      <div class="s-page-busy" id="simplePageBusy" hidden>
+        <div class="s-busy-inner">
+          <span class="s-spinner" aria-hidden="true"></span>
+          <p id="simplePageBusyText">Writing your posts…</p>
+        </div>
       </div>
       <div class="s-stack" id="simpleStack"></div>
       <p class="s-foot">
@@ -2374,6 +2388,7 @@
               renderWeekBar(state);
               renderAll(state);
               scrollToNextAfterApprove(id);
+              maybeScheduleApproved();
               return;
             }
             state[id].status = "approved";
@@ -2382,6 +2397,7 @@
             renderAll(state);
             renderWeekBar(state);
             scrollToNextAfterApprove(id);
+            maybeScheduleApproved();
           }
           if (action === "edit") {
             if (editorOpen && selectedId !== id) commitSelected({ silent: true });
@@ -3046,8 +3062,14 @@
     return out;
   }
 
+  function draftsAlreadyScheduled(state) {
+    const st = state || loadState();
+    return !!(st._scheduledWeekId);
+  }
+
   function scheduleBoardPush() {
     if (!getBoardCode()) return;
+    if (draftsAlreadyScheduled()) return;
     syncDirty = true;
     if (!navigator.onLine) {
       setSyncStatus("offline");
@@ -3060,6 +3082,11 @@
 
   async function pushBoard() {
     if (!getBoardCode() || syncInFlight) return;
+    if (draftsAlreadyScheduled()) {
+      syncDirty = false;
+      setSyncStatus("synced");
+      return;
+    }
     if (!navigator.onLine) {
       setSyncStatus("offline");
       return;
@@ -3279,6 +3306,9 @@
   }
 
   function postingLine(slot, post) {
+    const label = post?.scheduledLabel || "";
+    if (label && (post?.queued || post?._scheduled)) return `Scheduled for ${label}`;
+    if (label) return `For ${label}`;
     const when = `${slot.day} 12:00`;
     return post?.status === "approved" ? `Approved – goes out ${when}` : `Goes out ${when}`;
   }
@@ -3302,7 +3332,14 @@
     if (!stack || !empty) return;
     const st = state || loadState();
     const ready = weekPosts(st);
-    empty.hidden = ready.length > 0;
+    const emptyText = document.getElementById("simpleEmptyText");
+    if (st._sortedUntil && !ready.length) {
+      empty.hidden = false;
+      if (emptyText) emptyText.textContent = "You're sorted until " + st._sortedUntil;
+    } else {
+      empty.hidden = ready.length > 0;
+      if (emptyText && !ready.length) emptyText.textContent = "Writing your posts…";
+    }
     if (!ready.length) {
       stack.innerHTML = "";
       return;
@@ -3340,7 +3377,7 @@
         <p class="s-msg" data-simple-msg></p>
         <div class="s-links">
           <button type="button" class="s-edit-link" data-simple="edit">Edit words</button>
-          ${approved ? `<button type="button" class="s-edit-link s-undo-link" data-simple="undo">Undo</button>` : ""}
+          ${approved && !post.queued && !post._scheduled ? `<button type="button" class="s-edit-link s-undo-link" data-simple="undo">Undo</button>` : ""}
         </div>
         <div class="s-edit" data-simple-edit hidden>
           <label class="sr-only" for="simpleCaption-${slot.id}">Caption</label>
@@ -3391,14 +3428,113 @@
     state[id].status = "approved";
     saveState(state);
     setSimpleMsg(id, "Nice one — that’s approved.", "is-ok");
+    maybeScheduleApproved();
   }
 
   function undoSimple(id) {
     const state = loadState();
-    if (!state[id]) return;
+    if (!state[id] || state[id].queued || state[id]._scheduled) return;
     state[id].status = "awaiting";
     saveState(state);
     setSimpleMsg(id, "Okay — this one isn’t approved yet.", "");
+  }
+
+  function allDraftsApproved(state) {
+    const st = state || loadState();
+    return SLOTS.every(s => st[s.id] && !isPlaceholderPost(st[s.id], s.id) && st[s.id].status === "approved");
+  }
+
+  function applyScheduleResult(data) {
+    if (!data || !data.ok) return;
+    const state = loadState();
+    const posts = data.posts || {};
+    for (const slot of SLOTS) {
+      if (posts[slot.id]) {
+        state[slot.id] = { ...(state[slot.id] || {}), ...posts[slot.id], status: "approved", generated: true, queued: true };
+      }
+    }
+    if (data.weekId) state._scheduledWeekId = data.weekId;
+    saveState(state, { sync: false, touch: false });
+  }
+
+  let scheduleInFlight = false;
+  async function maybeScheduleApproved() {
+    if (scheduleInFlight) return;
+    const state = loadState();
+    if (!allDraftsApproved(state) || state._scheduledWeekId) return;
+    scheduleInFlight = true;
+    try {
+      const res = await api("POST", "/schedule", { body: boardPayload(state) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        if (data.error === "queue_full") {
+          const until = data.schedule && data.schedule.sortedUntil;
+          setSimpleMsg("001", until ? "You're sorted until " + until : "The next few weeks are already full.", "is-ok");
+        }
+        return;
+      }
+      applyScheduleResult(data);
+      for (const slot of SLOTS) {
+        const label = data.posts && data.posts[slot.id] && data.posts[slot.id].scheduledLabel;
+        setSimpleMsg(slot.id, label ? "Scheduled for " + label : "Scheduled.", "is-ok");
+      }
+    } catch (err) {
+      console.warn("schedule", err);
+    } finally {
+      scheduleInFlight = false;
+    }
+  }
+
+  function setPageBusy(on, text) {
+    const busy = document.getElementById("simplePageBusy");
+    const label = document.getElementById("simplePageBusyText");
+    const empty = document.getElementById("simpleEmpty");
+    if (label && text) label.textContent = text;
+    if (busy) busy.hidden = !on;
+    if (on && empty) empty.hidden = true;
+  }
+
+  async function ensureDraftsOnLoad() {
+    if (!getBoardCode() || !navigator.onLine) return { ok: false };
+    setPageBusy(true, "Writing your posts…");
+    try {
+      for (let attempt = 0; attempt < 40; attempt++) {
+        const res = await api("POST", "/ensure-drafts");
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 202 || data.pending) {
+          await new Promise(r => setTimeout(r, 1500));
+          continue;
+        }
+        if (!res.ok) throw new Error("ensure-drafts failed");
+        const remote = data.board || {};
+        const hasPosts = SLOTS.some(s => remote[s.id] && String(remote[s.id].line1 || "").trim());
+        if (data.queueFull && !hasPosts) {
+          const cleaned = { ...loadState() };
+          for (const s of SLOTS) delete cleaned[s.id];
+          cleaned._sortedUntil = (data.schedule && data.schedule.sortedUntil) || "";
+          if (data.schedule && data.schedule.sortedUntil) cleaned._sortedUntil = data.schedule.sortedUntil;
+          boardBase = remote.updatedAt || null;
+          saveState(cleaned, { sync: false, touch: false });
+          return data;
+        }
+        if (hasPosts) {
+          boardBase = remote.updatedAt || boardBase;
+          const merged = mergeBoards(loadState(), remote);
+          for (const s of SLOTS) {
+            if (remote[s.id]) merged[s.id] = { ...(merged[s.id] || {}), ...remote[s.id], generated: true };
+          }
+          delete merged._sortedUntil;
+          saveState(merged, { sync: false, touch: false });
+        }
+        return data;
+      }
+      throw new Error("ensure-drafts timed out");
+    } catch (err) {
+      console.warn("ensure-drafts", err);
+      return { ok: false, error: String(err && err.message || err) };
+    } finally {
+      setPageBusy(false);
+    }
   }
 
   function setSimpleBusy(id, text) {
@@ -3684,9 +3820,14 @@
       await loadRemotePhotos();
       await flushPendingPhotos();
       await flushPendingNotes();
+      if (getView() === "simple") setPageBusy(true, "Writing your posts…");
       pulled = await pullBoard();
+      const ensured = await ensureDraftsOnLoad();
+      if (ensured && ensured.board && SLOTS.some(s => ensured.board[s.id] && ensured.board[s.id].line1)) {
+        pulled = { empty: false, localNewer: false };
+      }
       const localReal = localHasRealPosts(loadState());
-      if (pulled.localNewer || (pulled.empty && localReal)) scheduleBoardPush();
+      if (pulled.localNewer || (pulled.empty && localReal && !ensured)) scheduleBoardPush();
       else setSyncStatus("synced");
     } catch (err) {
       if (err && err.message === "unauthorized") return;
