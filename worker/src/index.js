@@ -5,6 +5,11 @@
  * as binary values, capped well under the KV value limit. The client should
  * compress uploads (the existing board already resizes to JPEG) before POST.
  *
+ * Weekly drafts are built by the Sunday 18:00 UTC cron and POST /generate,
+ * using Workers AI (Llama instruct) with template fallback, then notify()
+ * emails NOTIFY_EMAILS, pushes ntfy if NTFY_TOPIC is set, and WhatsApp via
+ * CallMeBot if CALLMEBOT_APIKEY is set.
+ *
  * Future Meta publishing (do not implement here) will read:
  *   env.META_PAGE_TOKEN, env.META_PAGE_ID, env.META_IG_USER_ID
  * Instagram Graph publishing requires a public HTTPS image URL, which
@@ -28,6 +33,37 @@ const PHOTO_META = (id) => `photo:meta:${id}`;
 const PHOTO_INDEX = "photo:index";
 const ARCHIVE_DATA = (id) => `archive:data:${id}`;
 const ARCHIVE_INDEX = "archive:index";
+const PHOTO_USED = "photo:used";
+const NOTIFY_STATE = "notify:latest";
+const MANIFEST_URL = "https://four2d.github.io/onaroll-garage-doors/photos/manifest.json";
+const DEFAULT_BOARD_URL = "https://four2d.github.io/onaroll-garage-doors/";
+const DEFAULT_FROM = "onaroll-posts@foxonsoftware.com";
+const DEFAULT_CTA = "Free survey · 01202 553603";
+const DEFAULT_PRICE_FROM = "From";
+const PHONE = "01202 553603";
+const WHATSAPP_DISPLAY = "07534 066813";
+const BRAND_SIGN_OFF = "On A Roll Garage Doors — Family-run, local garage door fitters in Poole.";
+const CRON_GENERATE = "0 18 * * SUN";
+const CRON_REMIND = "0 8 * * MON,WED,FRI";
+const CRON_PUBLISH = "0 12 * * MON,WED,FRI";
+const LINE_MAX = 42;
+const SUB_MAX = 110;
+const CAPTION_MAX = 2200;
+const AI_MODELS = [
+  "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+  "@cf/meta/llama-3.2-11b-vision-instruct",
+  "@cf/meta/llama-3.2-3b-instruct",
+];
+const SLOTS = [
+  { id: "001", day: "Monday", angle: "a recent install — a real job just finished, tidy and local" },
+  { id: "002", day: "Wednesday", angle: "a security or insulation benefit of a modern roller door" },
+  { id: "003", day: "Friday", angle: "a free survey call-to-action, no hard sell" },
+];
+const HASHTAGS = {
+  "001": "#OnARollGarageDoors #GarageDoors #RollerGarageDoor #Poole #Bournemouth #Christchurch #Dorset #FreeSurvey #FamilyRun",
+  "002": "#GarageDoorSecurity #HomeSecurity #Poole #Bournemouth #Christchurch #Dorset #OnARollGarageDoors",
+  "003": "#FreeSurvey #GarageDoorFitters #Poole #Bournemouth #Christchurch #Dorset #OnARollGarageDoors #FamilyRun",
+};
 
 export default {
   async fetch(request, env) {
@@ -46,6 +82,24 @@ export default {
       const status = err && err.status ? err.status : 500;
       return withCors(json(status, { error: message }), corsOrigin(request));
     }
+  },
+
+  async scheduled(controller, env, ctx) {
+    const cron = controller.cron;
+    const when = new Date(controller.scheduledTime || Date.now());
+    if (cron === CRON_GENERATE) {
+      await generateWeek(env, { source: "cron", notify: true, now: when });
+      return;
+    }
+    if (cron === CRON_REMIND) {
+      await remindIfNeeded(env, when);
+      return;
+    }
+    if (cron === CRON_PUBLISH) {
+      await publishDue(env, when);
+      return;
+    }
+    console.log(JSON.stringify({ event: "unknown_cron", cron }));
   },
 };
 
@@ -121,16 +175,46 @@ async function route(request, env, path) {
     return methodNotAllowed("GET");
   }
 
+  if (path === "/generate") {
+    if (method !== "POST") return methodNotAllowed("POST");
+    await requireKey(request, env);
+    const body = request.headers.get("Content-Type")?.includes("json")
+      ? (await readJson(request, MAX_JSON_BYTES)) || {}
+      : {};
+    const notify = body.notify !== false;
+    const result = await generateWeek(env, { source: "manual", notify, now: new Date() });
+    return json(200, result);
+  }
+
+  if (path === "/notify/test") {
+    if (method !== "POST") return methodNotAllowed("POST");
+    await requireKey(request, env);
+    const result = await sendTestNotification(env);
+    return json(200, result);
+  }
+
   if (path === "/publish/facebook" || path === "/publish/instagram") {
     if (method !== "POST") return methodNotAllowed("POST");
     await requireKey(request, env);
-    // Placeholders only. Later these will use:
-    //   env.META_PAGE_TOKEN, env.META_PAGE_ID, env.META_IG_USER_ID
-    // Instagram needs a public image URL from GET /photos/:id.
-    return json(501, { error: "Meta not connected yet" });
+    return json(501, publishPlaceholder(path.endsWith("instagram") ? "instagram" : "facebook"));
+  }
+
+  if (path === "/publish") {
+    if (method !== "POST") return methodNotAllowed("POST");
+    await requireKey(request, env);
+    const body = request.headers.get("Content-Type")?.includes("json")
+      ? (await readJson(request, MAX_JSON_BYTES)) || {}
+      : {};
+    return json(501, publishPlaceholder(body.channel || "facebook"));
   }
 
   return json(404, { error: "not found" });
+}
+
+function publishPlaceholder(channel) {
+  // Later these will use env.META_PAGE_TOKEN, env.META_PAGE_ID, env.META_IG_USER_ID.
+  // Instagram needs a public image URL from GET /photos/:id.
+  return { error: "Meta not connected yet", channel };
 }
 
 /* —— Board —— */
@@ -634,4 +718,648 @@ function withCors(response, origin) {
   const extra = corsHeaders(origin);
   for (const [k, v] of Object.entries(extra)) headers.set(k, v);
   return new Response(response.body, { status: response.status, headers });
+}
+
+/* —— Weekly generation —— */
+
+async function generateWeek(env, { source, notify = true, now = new Date() } = {}) {
+  const weekId = nextWeekMondayId(now);
+  const photos = await pickPhotos(env, SLOTS.length);
+  const posts = {};
+  const sources = {};
+  for (let i = 0; i < SLOTS.length; i++) {
+    const slot = SLOTS[i];
+    const chosen = photos[i] || null;
+    const copy = await writeCopy(env, slot, chosen, weekId);
+    posts[slot.id] = buildPost(slot, chosen, copy);
+    sources[slot.id] = copy.source;
+  }
+
+  const generatedAt = new Date().toISOString();
+  const board = {
+    weekId,
+    generatedAt,
+    generatedBy: source || "manual",
+    copySource: sources,
+    "001": posts["001"],
+    "002": posts["002"],
+    "003": posts["003"],
+    updatedAt: generatedAt,
+  };
+
+  let notification = null;
+  if (notify) {
+    notification = await notify(env, {
+      type: "ready",
+      board,
+      includeNtfySetup: false,
+    });
+    board._notify = {
+      needsReview: true,
+      boardUrl: boardUrl(env),
+      sentAt: notification.sentAt,
+      channels: notification.channels,
+    };
+  }
+
+  await env.KV.put(BOARD_KEY, JSON.stringify(board));
+  return {
+    ok: true,
+    weekId,
+    generatedAt,
+    generatedBy: board.generatedBy,
+    copySource: sources,
+    photos: photos.map((p) => ({ id: p.id, label: p.label || null, origin: p.origin })),
+    notification,
+    board,
+  };
+}
+
+function buildPost(slot, photo, copy) {
+  const post = {
+    photo: photo ? photo.boardPhoto : null,
+    customPhoto: photo && photo.origin === "upload" ? photo.id : null,
+    line1: copy.line1,
+    line2: copy.line2,
+    sub: copy.sub,
+    cta: DEFAULT_CTA,
+    showPrice: false,
+    priceFrom: DEFAULT_PRICE_FROM,
+    priceAmount: "",
+    status: "awaiting",
+    variant: 0,
+    angle: slot.angle,
+  };
+  post.caption = buildCaption(post, slot.id);
+  return post;
+}
+
+function buildCaption(post, slotId) {
+  const hook = `${post.line1 || ""} ${post.line2 || ""}`.replace(/\s+/g, " ").trim();
+  const sub = String(post.sub || "").replace(/\s+/g, " ").trim();
+  let body = hook;
+  if (sub && sub.toLowerCase() !== hook.toLowerCase()) {
+    body = hook ? `${hook} ${sub}` : sub;
+  }
+  if (!body) body = "Made-to-measure garage doors, fitted locally.";
+  const lead = /[.!?]$/.test(body) ? body : `${body}.`;
+  return `${lead}\n\nFree survey → ${PHONE} · WhatsApp ${WHATSAPP_DISPLAY}\nonarollgaragedoors.co.uk\n\n${BRAND_SIGN_OFF}\n\n${HASHTAGS[slotId] || HASHTAGS["001"]}`;
+}
+
+function nextWeekMondayId(d) {
+  const day = (d.getUTCDay() + 6) % 7; // Mon=0 ... Sun=6
+  const add = day === 6 ? 1 : day === 0 && d.getUTCHours() >= 18 ? 7 : -day;
+  // Sunday (any time, including the 18:00 cron): next Monday.
+  // Monday 18:00 or later (manual): the following Monday.
+  // Tuesday–Saturday: this week's Monday (regenerate the current week).
+  const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  if (day === 6) monday.setUTCDate(monday.getUTCDate() + 1);
+  else if (day === 0 && d.getUTCHours() >= 18) monday.setUTCDate(monday.getUTCDate() + 7);
+  else monday.setUTCDate(monday.getUTCDate() - day);
+  const y = monday.getUTCFullYear();
+  const m = String(monday.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(monday.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
+/* —— Photos —— */
+
+async function pickPhotos(env, count) {
+  const pool = await loadPhotoPool(env);
+  const used = (await env.KV.get(PHOTO_USED, "json")) || { items: {} };
+  const items = used.items || used; // tolerate a flat map
+  const now = new Date().toISOString();
+
+  const unused = [];
+  const seen = [];
+  for (const photo of pool) {
+    if (items[photo.id] && items[photo.id].usedAt) seen.push(photo);
+    else unused.push(photo);
+  }
+  seen.sort((a, b) => String(items[a.id].usedAt).localeCompare(String(items[b.id].usedAt)));
+
+  const ordered = [...unused, ...seen];
+  const picked = [];
+  const pickedIds = new Set();
+  for (const photo of ordered) {
+    if (picked.length >= count) break;
+    if (pickedIds.has(photo.id)) continue;
+    picked.push(photo);
+    pickedIds.add(photo.id);
+  }
+  // If the pool is smaller than count, reuse from the start.
+  let i = 0;
+  while (picked.length < count && ordered.length) {
+    picked.push(ordered[i % ordered.length]);
+    i += 1;
+  }
+
+  const nextItems = { ...items };
+  for (const photo of picked) {
+    const prev = nextItems[photo.id] || { count: 0 };
+    nextItems[photo.id] = { usedAt: now, count: (prev.count || 0) + 1, origin: photo.origin };
+  }
+  await env.KV.put(PHOTO_USED, JSON.stringify({ items: nextItems, updatedAt: now }));
+  return picked;
+}
+
+async function loadPhotoPool(env) {
+  const pool = [];
+  const seen = new Set();
+
+  try {
+    const res = await fetch(`${MANIFEST_URL}?ts=${Date.now()}`, { cf: { cacheTtl: 0 } });
+    if (res.ok) {
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : data.photos || [];
+      for (const item of list) {
+        if (!item || !item.id) continue;
+        if (seen.has(item.id)) continue;
+        seen.add(item.id);
+        pool.push({
+          id: item.id,
+          label: item.label || item.id,
+          origin: "manifest",
+          boardPhoto: item.id,
+          src: item.src || null,
+        });
+      }
+    } else {
+      console.log(JSON.stringify({ event: "manifest_fetch_failed", status: res.status }));
+    }
+  } catch (err) {
+    console.log(JSON.stringify({ event: "manifest_fetch_error", error: String(err && err.message || err) }));
+  }
+
+  const index = (await env.KV.get(PHOTO_INDEX, "json")) || [];
+  for (const entry of index) {
+    const id = entry.id;
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    pool.push({
+      id,
+      label: entry.filename || "Uploaded photo",
+      origin: "upload",
+      boardPhoto: id,
+      src: null,
+    });
+  }
+  return pool;
+}
+
+/* —— Copy —— */
+
+async function writeCopy(env, slot, photo, weekId) {
+  if (env.AI && typeof env.AI.run === "function") {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const generated = await generateWithAi(env, slot, photo, weekId, attempt);
+      if (generated) return { ...generated, source: "ai", attempt };
+    }
+  }
+  return { ...templateCopy(slot, weekId), source: "template" };
+}
+
+async function generateWithAi(env, slot, photo, weekId, attempt) {
+  const model = AI_MODELS[(attempt - 1) % AI_MODELS.length];
+  const prompt = [
+    "You write short Facebook and Instagram captions for On a Roll Garage Doors,",
+    "a family-run garage door fitter in Poole, covering Poole, Bournemouth, Christchurch and Dorset.",
+    "Voice: local, honest, plain English. Like a tradesperson talking to a neighbour, not an ad agency.",
+    "Do not invent jobs, prices, reviews, star ratings, accreditations or a founding year.",
+    "No pound signs, no prices, no 'since ...', no testimonials.",
+    "Warranty, if mentioned at all, may only be written exactly as '5-year warranty'.",
+    `This post is for ${slot.day}. Angle: ${slot.angle}.`,
+    photo && photo.label ? `The photo is one of Jon's real photos, labelled: ${photo.label}.` : "",
+    "Return ONLY a JSON object with keys line1, line2, sub.",
+    `line1: first headline line, max ${LINE_MAX} characters.`,
+    `line2: second headline line, max ${LINE_MAX} characters.`,
+    `sub: one supporting sentence under the headline, max ${SUB_MAX} characters.`,
+    "No hashtags, no phone numbers, no website, no CTA in these fields — those are added later.",
+    attempt === 2 ? "A previous draft failed the brand checks or was too long. Write a tighter, cleaner draft." : "",
+  ].filter(Boolean).join(" ");
+
+  try {
+    const result = await env.AI.run(model, {
+      messages: [
+        { role: "system", content: "You are a careful copywriter. You only output valid JSON." },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 300,
+      temperature: 0.7,
+    });
+    const text = aiText(result);
+    const parsed = parseJsonObject(text);
+    if (!parsed) return null;
+    const copy = {
+      line1: tidyLine(parsed.line1, LINE_MAX),
+      line2: tidyLine(parsed.line2, LINE_MAX),
+      sub: tidyLine(parsed.sub, SUB_MAX),
+      model,
+    };
+    const reason = validateCopy(`${copy.line1} ${copy.line2} ${copy.sub}`);
+    if (reason) {
+      console.log(JSON.stringify({ event: "copy_rejected", slot: slot.id, reason, attempt, model }));
+      return null;
+    }
+    if (!copy.line1 || !copy.line2) return null;
+    return copy;
+  } catch (err) {
+    console.log(JSON.stringify({
+      event: "ai_failed",
+      slot: slot.id,
+      attempt,
+      model,
+      error: String(err && err.message || err),
+    }));
+    return null;
+  }
+}
+
+function aiText(result) {
+  if (!result) return "";
+  if (typeof result === "string") return result;
+  if (typeof result.response === "string") return result.response;
+  if (typeof result.result === "string") return result.result;
+  if (result.result && typeof result.result.response === "string") return result.result.response;
+  if (Array.isArray(result.result) && result.result[0]?.response) return result.result[0].response;
+  return JSON.stringify(result);
+}
+
+function parseJsonObject(text) {
+  if (!text) return null;
+  const trimmed = String(text).trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const raw = fenced ? fenced[1] : trimmed;
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start === -1 || end === -1) return null;
+  try {
+    const obj = JSON.parse(raw.slice(start, end + 1));
+    return obj && typeof obj === "object" && !Array.isArray(obj) ? obj : null;
+  } catch {
+    return null;
+  }
+}
+
+function tidyLine(value, max) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const space = cut.lastIndexOf(" ");
+  return (space >= 20 ? cut.slice(0, space) : cut).trim();
+}
+
+function validateCopy(text) {
+  const value = String(text || "");
+  if (value.includes("£") || value.includes("&pound;")) return "price_symbol";
+  if (/\bsince\b/i.test(value)) return "since";
+  if (/\breview/i.test(value)) return "review";
+  if (/\bstars?\b/i.test(value)) return "star";
+  const years = value.match(/\d+\s*-?\s*years?\b/gi) || [];
+  for (const match of years) {
+    if (!/^5\s*-year$/i.test(match.replace(/\s+/g, "-").replace(/s$/i, ""))) {
+      // Allow only the exact phrase "5-year" (optional spaces already normalised).
+      const normalised = match.toLowerCase().replace(/\s+/g, "").replace(/s$/, "");
+      if (normalised !== "5-year") return "year";
+    }
+  }
+  if (value.length > CAPTION_MAX) return "too_long";
+  return null;
+}
+
+function templateCopy(slot, weekId) {
+  const packs = {
+    "001": [
+      { line1: "Just fitted.", line2: "Looks the part.", sub: "Made-to-measure roller, fitted tidy by our local team." },
+      { line1: "Old door out.", line2: "New door in.", sub: "A clean swap, usually done in about half a day." },
+      { line1: "Another driveway,", line2: "sorted locally.", sub: "Colour-matched aluminium roller, fitted in Poole and around Dorset." },
+    ],
+    "002": [
+      { line1: "Secure it.", line2: "Quiet it.", sub: "Modern rollers lock into the side guides and keep the garage warmer." },
+      { line1: "The garage is", line2: "the easy way in.", sub: "A proper roller locks as it closes — and it’s quieter and better insulated." },
+      { line1: "Warm. Quiet.", line2: "Harder to force.", sub: "A 5-year warranty on a door that shuts smoothly and stays shut." },
+    ],
+    "003": [
+      { line1: "Free survey.", line2: "Straight talk.", sub: "We’ll measure up, talk you through the options and give you a clear quote." },
+      { line1: "Book a survey.", line2: "No hard sell.", sub: "Family-run in Poole. We come to you across Bournemouth, Christchurch and Dorset." },
+      { line1: "Ready for a", line2: "new garage door?", sub: "A free survey is the first step — local fitters, honest advice." },
+    ],
+  };
+  const list = packs[slot.id] || packs["001"];
+  const seed = Number(String(weekId).replace(/\D/g, "").slice(-2) || 0);
+  const pick = list[seed % list.length];
+  const reason = validateCopy(`${pick.line1} ${pick.line2} ${pick.sub}`);
+  if (reason) {
+    return { line1: "Made to measure.", line2: "Fitted locally.", sub: "Family-run garage door fitters in Poole, covering Dorset." };
+  }
+  return { ...pick };
+}
+
+/* —— Notifications —— */
+
+async function notify(env, { type, board, slot, includeNtfySetup = false, subject, text } = {}) {
+  const url = boardUrl(env);
+  const sentAt = new Date().toISOString();
+  const message = text || buildNotifyText(type, board, slot, url);
+  const mailSubject = subject || defaultSubject(type, slot);
+  // Secrets (board key, ntfy topic) go only in the one-off test email body,
+  // never in weekly/reminder mail, ntfy, WhatsApp, logs, or API responses.
+  const mailBody = includeNtfySetup || type === "test"
+    ? appendTestEmailExtras(message, env)
+    : message;
+
+  const channels = { email: { sent: false }, ntfy: { sent: false }, whatsapp: { skipped: true } };
+
+  const emails = notifyEmails(env);
+  if (emails.length && env.SEND_EMAIL) {
+    const results = [];
+    for (const to of emails) {
+      const result = await sendEmail(env, { to, subject: mailSubject, text: mailBody });
+      results.push({ to, ...result });
+    }
+    channels.email = {
+      sent: results.every((r) => r.sent),
+      recipients: results.map((r) => ({ to: r.to, sent: r.sent, error: r.error || undefined, messageId: r.messageId || undefined })),
+    };
+  } else if (!env.SEND_EMAIL) {
+    channels.email = { sent: false, error: "SEND_EMAIL binding missing" };
+  }
+
+  if (env.NTFY_TOPIC) {
+    channels.ntfy = await sendNtfy(env, { title: mailSubject, body: message, click: url });
+  } else {
+    channels.ntfy = { sent: false, skipped: true };
+  }
+
+  if (env.CALLMEBOT_APIKEY && env.WHATSAPP_PHONE) {
+    channels.whatsapp = await sendWhatsApp(env, message);
+  } else {
+    channels.whatsapp = { sent: false, skipped: true };
+  }
+
+  const record = {
+    needsReview: type === "ready" || type === "reminder",
+    type,
+    boardUrl: url,
+    subject: mailSubject,
+    sentAt,
+    channels: summariseChannels(channels),
+  };
+  await env.KV.put(NOTIFY_STATE, JSON.stringify(record));
+  return { sentAt, subject: mailSubject, channels, boardUrl: url };
+}
+
+function summariseChannels(channels) {
+  return {
+    email: {
+      sent: !!channels.email?.sent,
+      recipientCount: channels.email?.recipients?.length || 0,
+      error: channels.email?.error || undefined,
+    },
+    ntfy: { sent: !!channels.ntfy?.sent, skipped: !!channels.ntfy?.skipped, error: channels.ntfy?.error || undefined },
+    whatsapp: { sent: !!channels.whatsapp?.sent, skipped: !!channels.whatsapp?.skipped, error: channels.whatsapp?.error || undefined },
+  };
+}
+
+function boardUrl(env) {
+  return (env.BOARD_URL || DEFAULT_BOARD_URL).replace(/\/+$/, "") + "/";
+}
+
+function notifyEmails(env) {
+  return String(env.NOTIFY_EMAILS || "")
+    .split(/[,;\s]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function defaultSubject(type, slot) {
+  if (type === "ready") return "This week's 3 On a Roll posts are ready to review";
+  if (type === "reminder") return "Today's On a Roll post isn't approved yet";
+  if (type === "test") return "[Test] On a Roll posts ready";
+  return "On a Roll posts";
+}
+
+function buildNotifyText(type, board, slot, url) {
+  if (type === "ready") {
+    const lines = ["This week's 3 On a Roll posts are ready to review.", ""];
+    for (const item of SLOTS) {
+      const post = board && board[item.id];
+      const headline = post ? `${post.line1 || ""} ${post.line2 || ""}`.replace(/\s+/g, " ").trim() : "(draft missing)";
+      lines.push(`${item.day}: ${headline}`);
+    }
+    lines.push("", "Review and edit them here:", url);
+    return lines.join("\n");
+  }
+  if (type === "reminder") {
+    const day = slot?.day || "Today's";
+    const post = board && slot ? board[slot.id] : null;
+    const headline = post ? `${post.line1 || ""} ${post.line2 || ""}`.replace(/\s+/g, " ").trim() : "";
+    return [
+      "Today's post isn't approved yet – it'll go out at 12:00 as it is unless you edit it.",
+      headline ? `${day}: ${headline}` : day,
+      "",
+      "Review it here:",
+      url,
+    ].join("\n");
+  }
+  return ["On a Roll notification.", "", url].join("\n");
+}
+
+function appendTestEmailExtras(text, env) {
+  const parts = [text];
+  const key = env.BOARD_KEY;
+  if (key) {
+    const unlock = boardUrl(env).replace(/\/+$/, "") + "/#key=" + key;
+    parts.push(
+      "Your board link",
+      "This is a private link that unlocks the board on this device. Don't share it.",
+      unlock,
+    );
+  }
+  const topic = env.NTFY_TOPIC;
+  if (topic) {
+    parts.push(
+      "Phone alerts",
+      "Install the ntfy app, then tap this link or add this topic in the app",
+      "https://ntfy.sh/" + topic,
+    );
+  } else {
+    parts.push(
+      "Phone alerts",
+      "Install the ntfy app, then add the On a Roll topic once it has been set.",
+    );
+  }
+  return parts.join("\n\n") + "\n";
+}
+
+async function sendEmail(env, { to, subject, text }) {
+  const from = env.NOTIFY_FROM || DEFAULT_FROM;
+  try {
+    // Prefer the structured Email Service API when the binding supports it.
+    const result = await env.SEND_EMAIL.send({
+      to,
+      from: { email: from, name: "On a Roll Posts" },
+      subject,
+      text,
+    });
+    return { sent: true, messageId: result && result.messageId };
+  } catch (first) {
+    try {
+      const { EmailMessage } = await import("cloudflare:email");
+      const raw = buildRawEmail({ from, to, subject, text });
+      await env.SEND_EMAIL.send(new EmailMessage(from, to, raw));
+      return { sent: true };
+    } catch (second) {
+      console.log(JSON.stringify({
+        event: "email_failed",
+        error: String(second && second.message || first && first.message || second),
+        code: (second && second.code) || (first && first.code) || undefined,
+      }));
+      return { sent: false, error: String(second && second.message || first && first.message || "send failed") };
+    }
+  }
+}
+
+function buildRawEmail({ from, to, subject, text }) {
+  const needsEncode = /[^\x20-\x7E]/.test(subject);
+  const subjectHeader = needsEncode
+    ? `=?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`
+    : subject;
+  return [
+    `From: On a Roll Posts <${from}>`,
+    `To: ${to}`,
+    `Subject: ${subjectHeader}`,
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=UTF-8",
+    "Content-Transfer-Encoding: 8bit",
+    "",
+    text.replace(/\n/g, "\r\n"),
+  ].join("\r\n");
+}
+
+async function sendNtfy(env, { title, body, click }) {
+  const topic = env.NTFY_TOPIC;
+  if (!topic) return { sent: false, skipped: true };
+  try {
+    const res = await fetch("https://ntfy.sh/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        topic,
+        title: title || "On a Roll",
+        message: body,
+        click: click || boardUrl(env),
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      console.log(JSON.stringify({ event: "ntfy_failed", status: res.status }));
+      return { sent: false, error: `ntfy HTTP ${res.status}` };
+    }
+    return { sent: true };
+  } catch (err) {
+    console.log(JSON.stringify({ event: "ntfy_failed", error: String(err && err.message || err) }));
+    return { sent: false, error: String(err && err.message || err) };
+  }
+}
+
+async function sendWhatsApp(env, text) {
+  const key = env.CALLMEBOT_APIKEY;
+  const phone = String(env.WHATSAPP_PHONE || "").replace(/\s+/g, "");
+  if (!key || !phone) return { sent: false, skipped: true };
+  try {
+    const endpoint = new URL("https://api.callmebot.com/whatsapp.php");
+    endpoint.searchParams.set("phone", phone);
+    endpoint.searchParams.set("text", text);
+    endpoint.searchParams.set("apikey", key);
+    const res = await fetch(endpoint.toString(), { method: "GET" });
+    if (!res.ok) {
+      console.log(JSON.stringify({ event: "whatsapp_failed", status: res.status }));
+      return { sent: false, error: `callmebot HTTP ${res.status}` };
+    }
+    return { sent: true };
+  } catch (err) {
+    console.log(JSON.stringify({ event: "whatsapp_failed", error: String(err && err.message || err) }));
+    return { sent: false, error: String(err && err.message || err) };
+  }
+}
+
+async function sendTestNotification(env) {
+  const url = boardUrl(env);
+  const text = [
+    "This is a test of On a Roll post alerts.",
+    "",
+    "You'll get a message like this on Sundays when the week's three posts are ready to review.",
+    "",
+    "Review the board:",
+    url,
+  ].join("\n");
+  return notify(env, {
+    type: "test",
+    subject: "[Test] On a Roll posts ready",
+    text,
+    includeNtfySetup: true,
+  });
+}
+
+/* —— Weekday reminder and publish attempt —— */
+
+function slotForDate(d) {
+  const day = d.getUTCDay(); // 0 Sun ... 1 Mon, 3 Wed, 5 Fri
+  if (day === 1) return SLOTS[0];
+  if (day === 3) return SLOTS[1];
+  if (day === 5) return SLOTS[2];
+  return null;
+}
+
+async function remindIfNeeded(env, now) {
+  const slot = slotForDate(now);
+  if (!slot) return { skipped: true, reason: "not a posting day" };
+  const board = await env.KV.get(BOARD_KEY, "json");
+  const post = board && board[slot.id];
+  if (!post) return { skipped: true, reason: "no post" };
+  if (post.status === "approved" || post.status === "publish-pending") {
+    return { skipped: true, reason: `status is ${post.status}` };
+  }
+  const notification = await notify(env, { type: "reminder", board, slot, includeNtfySetup: false });
+  return { ok: true, slot: slot.id, day: slot.day, notification };
+}
+
+async function publishDue(env, now) {
+  const slot = slotForDate(now);
+  if (!slot) return { skipped: true, reason: "not a posting day" };
+  const board = (await env.KV.get(BOARD_KEY, "json")) || {};
+  const post = board[slot.id];
+  if (!post) return { skipped: true, reason: "no post" };
+
+  post.dueToPublish = true;
+  post.dueAt = new Date().toISOString();
+
+  const attempts = {
+    facebook: publishPlaceholder("facebook"),
+    instagram: publishPlaceholder("instagram"),
+  };
+  console.log(JSON.stringify({
+    event: "publish_attempt",
+    slot: slot.id,
+    day: slot.day,
+    status: post.status,
+    facebook: attempts.facebook,
+    instagram: attempts.instagram,
+  }));
+
+  // 501 until Meta is connected — mark the post and do not error the cron.
+  post.status = "publish-pending";
+  post.publishNote = "Meta not connected";
+  board[slot.id] = post;
+  board.updatedAt = new Date().toISOString();
+  await env.KV.put(BOARD_KEY, JSON.stringify(board));
+  return {
+    ok: true,
+    slot: slot.id,
+    day: slot.day,
+    status: post.status,
+    publishNote: post.publishNote,
+    attempts,
+  };
 }

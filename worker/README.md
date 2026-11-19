@@ -2,8 +2,8 @@
 
 Cloudflare Worker that stores Jon’s On a Roll social board so it can sync
 between devices, keep a photo library that is not capped by `localStorage`,
-and archive an approved week without downloading two files and pushing them
-to GitHub.
+archive an approved week without downloading two files and pushing them
+to GitHub, and generate next week's three drafts every Sunday.
 
 Live URL (workers.dev):
 
@@ -71,6 +71,9 @@ headers.
 | `GET` | `/archive/:id` | yes | One archived week |
 | `POST` | `/publish/facebook` | yes | Placeholder — `501` “Meta not connected yet” |
 | `POST` | `/publish/instagram` | yes | Placeholder — `501` “Meta not connected yet” |
+| `POST` | `/publish` | yes | Same Meta placeholder used by the 12:00 cron |
+| `POST` | `/generate` | yes | Build next week's three awaiting drafts and notify |
+| `POST` | `/notify/test` | yes | Send a one-off test email (and ntfy, if configured) |
 
 ### Board sync (`GET` / `PUT /board`)
 
@@ -161,6 +164,90 @@ account id can later be added as Worker secrets (`META_PAGE_TOKEN`,
 `META_PAGE_ID`, `META_IG_USER_ID`) without changing the URL scheme. Do not
 put those values in this repo.
 
+
+### Weekly drafts (`POST /generate` and Sunday 18:00 UTC)
+
+A Cron Trigger at **Sunday 18:00 UTC** builds Monday, Wednesday and Friday
+drafts for the coming week, all with `status: "awaiting"`. The same job is
+exposed as `POST /generate` (requires `X-Board-Key`). Send
+`{ "notify": false }` to generate without emailing or pushing.
+
+Each post matches the board object on `jonbot/phase1-fixes`: `line1`, `line2`,
+`sub`, `cta`, `caption`, `photo`, `status`, `showPrice: false`, `priceFrom`,
+`priceAmount` (empty) and `customPhoto`.
+
+**Photos** are picked from the public manifest at
+`https://four2d.github.io/onaroll-garage-doors/photos/manifest.json` (mostly
+exports from Jon's Facebook page) plus anything uploaded to `POST /photos`.
+A used-photo log in KV avoids repeats until the pool is exhausted, then
+reuses the least recently used photo.
+
+**Copy** is written with Workers AI on the free Neuron allocation, trying a
+Llama instruct model (currently `@cf/meta/llama-3.3-70b-instruct-fp8-fast`,
+falling back to Llama 3.2 instruct models if needed). Brand rules:
+
+- local, honest voice for a family-run garage door fitter in Poole
+- vary the angle: a recent install, a security or insulation benefit, and a free survey call
+- no prices at all
+- no founding years or “since …”
+- no reviews, testimonials, star ratings or accreditations
+- warranty may only be “5-year warranty”
+- CTA “Free survey · 01202 553603”, WhatsApp 07534 066813 and onarollgaragedoors.co.uk
+- hashtags for Poole, Bournemouth, Christchurch and Dorset
+
+Every draft is run through a validator that rejects `£`, digits followed by
+“year” other than “5-year”, “since”, “review” and “star”, and drops lines
+that are over length (`line1`/`line2` 42, `sub` 110, `caption` 2200). If the
+model fails twice, the Worker uses template copy.
+
+### Notifications
+
+After a Sunday generate, `notify()` tells Pete (and later Jon) that the
+posts are ready. Recipients come from the Worker var `NOTIFY_EMAILS`
+(currently `dent.pete@gmail.com`; add Jon’s address later). The email is
+sent with the `SEND_EMAIL` binding, from `onaroll-posts@foxonsoftware.com`,
+and never includes the board key. The Sunday message is “This week's 3 On a
+Roll posts are ready to review”, with a one-line summary of each post
+(day and headline) and a link to
+https://four2d.github.io/onaroll-garage-doors/.
+
+Phone alerts go to [ntfy](https://ntfy.sh/) when the `NTFY_TOPIC` secret is
+set. The Worker POSTs the same short message to `https://ntfy.sh/<topic>`.
+The topic itself is a secret — do not commit it. Install the ntfy app and
+subscribe to the topic (Pete is sent a setup link in a one-off test email).
+
+WhatsApp uses the free [CallMeBot](https://www.callmebot.com/blog/free-api-whatsapp-messages/)
+API. The phone number is the Worker var `WHATSAPP_PHONE` (`+447854046904`).
+The API key is the Worker secret `CALLMEBOT_APIKEY`. If that secret is not
+set, WhatsApp is skipped quietly. To activate it, Pete should message
+CallMeBot from WhatsApp to receive a key, then:
+
+```bash
+npx wrangler@4 secret put CALLMEBOT_APIKEY
+```
+
+The same short ready/reminder text, including the board link, is used on
+email, ntfy and WhatsApp.
+
+### Remind, then post (Mon / Wed / Fri)
+
+- **08:00 UTC** — if that day's post is still not `approved`, send a
+  reminder through the same channels: “Today's post isn't approved yet –
+  it'll go out at 12:00 as it is unless you edit it.”
+- **12:00 UTC** — mark the day's post as due-to-publish and call
+  `/publish`. That returns `501` until Meta is connected, so the Worker
+  logs the attempt and sets the post status to `publish-pending` with
+  `publishNote: "Meta not connected"`, without erroring the cron.
+
+`POST /notify/test` sends one test email with the subject
+`[Test] On a Roll posts ready`. That email is the only place that includes
+a private board unlock link (the page reads `#key=` from the hash, saves
+it on the device, then strips it) and the ntfy topic link. It is a private
+link and should not be shared. Weekly and reminder emails use the plain
+board URL only and never include the key or the topic. The same request
+sends a test ntfy push if the topic is set. It does not send a WhatsApp test. (and a test ntfy push if the topic is set).
+It does not send a WhatsApp test.
+
 ## Setup
 
 From this `worker/` directory, with Wrangler logged into the Pete Cloudflare
@@ -169,11 +256,18 @@ account (`7e2fd6cc6c830ed939df10ccc0d2cb6c`):
 ```bash
 npx wrangler@4 deploy
 npx wrangler@4 secret put BOARD_KEY
+npx wrangler@4 secret put NTFY_TOPIC
+# once CallMeBot has issued a key:
+# npx wrangler@4 secret put CALLMEBOT_APIKEY
 # later, once a Page admin can create a Meta app:
 # npx wrangler@4 secret put META_PAGE_TOKEN
 # npx wrangler@4 secret put META_PAGE_ID
 # npx wrangler@4 secret put META_IG_USER_ID
 ```
+
+To add Jon to the email list later, append his address to `NOTIFY_EMAILS`
+and add him as a verified Email Routing destination, then allow that
+address on the `SEND_EMAIL` binding.
 
 The KV namespace id in `wrangler.toml` already exists. Do not recreate it,
 and do not modify `foxon-books-ch`, `foxon-forms`, `foxon-stats`, or
