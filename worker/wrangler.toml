@@ -36,8 +36,9 @@ crons = [ "0 18 * * SUN", "0 8 * * MON,WED,FRI", "0 12 * * MON,WED,FRI", "0 17 *
 enabled = true
 
 # Secrets (set with `wrangler secret put`, never commit values):
-#   BOARD_KEY            required — sent by clients as the X-Board-Key header
+#   BOARD_KEY            required — accepted as X-Board-Key (legacy board code / #key= link)
 #   CALLMEBOT_APIKEY     optional — CallMeBot WhatsApp key; skipped if unset
+#   AUTH_TEST_HOOK       optional — test header X-Auth-Test skips sending sign-in messages
 #   META_PAGE_TOKEN      later — Facebook Page access token
 #   META_PAGE_ID         later — Facebook Page id
 #   META_IG_USER_ID      later — Instagram business account id

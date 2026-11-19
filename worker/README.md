@@ -39,12 +39,24 @@ a later change — do not point `wrangler deploy` at `index.html`.
 
 ## Auth
 
-Every write, every board read, photo listing, and archive read needs the
-header:
+Protected routes accept either the original board key or a long-lived device
+session in the `X-Board-Key` header (a session may also be sent as
+`X-Board-Session`). Login never returns `BOARD_KEY`.
 
-```
-X-Board-Key: <BOARD_KEY>
-```
+The usual way in is `POST /auth/request` with `{ "contact" }` (an email or a
+UK mobile number: `07…`, `+44`, spaces are fine). Only contacts on
+`NOTIFY_EMAILS` or `WHATSAPP_PHONE` are sent a 6-digit code, valid for 10
+minutes and single use, plus a one-tap `#login=` link. Everyone else still
+gets `{ ok: true, message: "If that's registered, a code is on its way" }`.
+Email goes out over the existing mail binding; a phone number uses CallMeBot.
+`POST /auth/verify` accepts `{ "contact", "code" }` or `{ "login" }` and
+returns a session token that lasts 180 days (stored in KV, revocable). Sends
+are limited to 3 per 15 minutes per contact and 10 per hour per IP; a code
+allows 5 guesses. If the optional `AUTH_TEST_HOOK` secret is set and the
+request has a matching `X-Auth-Test` header, no message is sent and the
+response includes `devCode` / `devLogin` for automated tests only.
+
+The board-code / `#key=` link still works for the existing email unlock.
 
 `BOARD_KEY` is a Worker secret. It is not in this repo. On the ops box it is
 kept at `/home/box/.secrets/onaroll-board.env` as `ONAROLL_BOARD_KEY`.
@@ -69,6 +81,9 @@ headers.
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `GET` | `/` | no | Health check |
+| `POST` | `/auth/request` | no | Send a sign-in code and magic link if the contact is allowlisted |
+| `POST` | `/auth/verify` | no | Exchange a code or `#login=` ticket for a session token |
+| `GET` | `/auth/delivery-status` | yes | Last sign-in delivery result, without the code |
 | `GET` | `/board` | yes | Current week board JSON |
 | `PUT` | `/board` | yes | Replace the current week board (optimistic lock) |
 | `DELETE` | `/board` | yes | Clear the current week board |
