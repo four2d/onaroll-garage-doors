@@ -36,7 +36,6 @@ enabled = true
 
 # Secrets (set with `wrangler secret put`, never commit values):
 #   BOARD_KEY            required — sent by clients as the X-Board-Key header
-#   NTFY_TOPIC           optional — ntfy.sh topic for phone alerts
 #   CALLMEBOT_APIKEY     optional — CallMeBot WhatsApp key; skipped if unset
 #   META_PAGE_TOKEN      later — Facebook Page access token
 #   META_PAGE_ID         later — Facebook Page id

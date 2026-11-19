@@ -62,6 +62,7 @@ headers.
 | `GET` | `/` | no | Health check |
 | `GET` | `/board` | yes | Current week board JSON |
 | `PUT` | `/board` | yes | Replace the current week board (optimistic lock) |
+| `DELETE` | `/board` | yes | Clear the current week board |
 | `GET` | `/photos` | yes | Photo library, newest first |
 | `POST` | `/photos` | yes | Upload an image; returns `{ id, url }` |
 | `GET` | `/photos/:id` | no | Serve the image |
@@ -73,7 +74,7 @@ headers.
 | `POST` | `/publish/instagram` | yes | Placeholder — `501` “Meta not connected yet” |
 | `POST` | `/publish` | yes | Same Meta placeholder used by the 12:00 cron |
 | `POST` | `/generate` | yes | Build next week's three awaiting drafts and notify |
-| `POST` | `/notify/test` | yes | Send a one-off test email (and ntfy, if configured) |
+| `POST` | `/notify/test` | yes | Send a one-off test email (and WhatsApp, if configured) |
 
 ### Board sync (`GET` / `PUT /board`)
 
@@ -182,9 +183,10 @@ exports from Jon's Facebook page) plus anything uploaded to `POST /photos`.
 A used-photo log in KV avoids repeats until the pool is exhausted, then
 reuses the least recently used photo.
 
-**Copy** is written with Workers AI on the free Neuron allocation, trying a
-Llama instruct model (currently `@cf/meta/llama-3.3-70b-instruct-fp8-fast`,
-falling back to Llama 3.2 instruct models if needed). Brand rules:
+**Copy** is written with Workers AI on the free Neuron allocation, trying
+`@cf/zai-org/glm-4.7-flash` first (strong JSON-friendly model on the free
+tier) and falling back to `@cf/meta/llama-4-scout-17b-16e-instruct`. Brand
+rules:
 
 - local, honest voice for a family-run garage door fitter in Poole
 - vary the angle: a recent install, a security or insulation benefit, and a free survey call
@@ -196,9 +198,12 @@ falling back to Llama 3.2 instruct models if needed). Brand rules:
 - hashtags for Poole, Bournemouth, Christchurch and Dorset
 
 Every draft is run through a validator that rejects `£`, digits followed by
-“year” other than “5-year”, “since”, “review” and “star”, and drops lines
-that are over length (`line1`/`line2` 42, `sub` 110, `caption` 2200). If the
-model fails twice, the Worker uses template copy.
+“year” other than “5-year”, “since”, “review”, “star”, “guarantee” /
+“guaranteed”, “best”, “cheapest”, “No.1” and other superlatives or salesy
+claims, Title Case headlines, lines that end mid-phrase (for example “great for.”), and lines that are over length (`line1`/`line2`
+42, `sub` 110, `caption` 2200). Headlines are punctuated so they join
+cleanly into the caption. If the model fails twice, the Worker uses
+template copy.
 
 ### Notifications
 
@@ -211,11 +216,6 @@ Roll posts are ready to review”, with a one-line summary of each post
 (day and headline) and a link to
 https://four2d.github.io/onaroll-garage-doors/.
 
-Phone alerts go to [ntfy](https://ntfy.sh/) when the `NTFY_TOPIC` secret is
-set. The Worker POSTs the same short message to `https://ntfy.sh/<topic>`.
-The topic itself is a secret — do not commit it. Install the ntfy app and
-subscribe to the topic (Pete is sent a setup link in a one-off test email).
-
 WhatsApp uses the free [CallMeBot](https://www.callmebot.com/blog/free-api-whatsapp-messages/)
 API. The phone number is the Worker var `WHATSAPP_PHONE` (`+447854046904`).
 The API key is the Worker secret `CALLMEBOT_APIKEY`. If that secret is not
@@ -227,7 +227,7 @@ npx wrangler@4 secret put CALLMEBOT_APIKEY
 ```
 
 The same short ready/reminder text, including the board link, is used on
-email, ntfy and WhatsApp.
+email and WhatsApp.
 
 ### Remind, then post (Mon / Wed / Fri)
 
@@ -242,10 +242,9 @@ email, ntfy and WhatsApp.
 `POST /notify/test` sends one test email with the subject
 `[Test] On a Roll posts ready`. That email is the only place that includes
 a private board unlock link (the page reads `#key=` from the hash, saves
-it on the device, then strips it) and the ntfy topic link. It is a private
-link and should not be shared. Weekly and reminder emails use the plain
-board URL only and never include the key or the topic. The same request
-sends a test ntfy push if the topic is set. It does not send a WhatsApp test. (and a test ntfy push if the topic is set).
+it on the device, then strips it). It is a private link and should not be
+shared. Weekly and reminder emails use the plain board URL only and never
+include the key.
 It does not send a WhatsApp test.
 
 ## Setup
@@ -256,7 +255,6 @@ account (`7e2fd6cc6c830ed939df10ccc0d2cb6c`):
 ```bash
 npx wrangler@4 deploy
 npx wrangler@4 secret put BOARD_KEY
-npx wrangler@4 secret put NTFY_TOPIC
 # once CallMeBot has issued a key:
 # npx wrangler@4 secret put CALLMEBOT_APIKEY
 # later, once a Page admin can create a Meta app:
