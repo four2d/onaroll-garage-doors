@@ -45,6 +45,17 @@ const BRAND_SIGN_OFF = "On A Roll Garage Doors — Family-run, local garage door
 const CRON_GENERATE = "0 18 * * SUN";
 const CRON_REMIND = "0 8 * * MON,WED,FRI";
 const CRON_PUBLISH = "0 12 * * MON,WED,FRI";
+const CRON_NUDGE = "0 17 * * THU";
+const HISTORY_KEY = "history:weeks";
+const NOTES_KEY = "notes:inbox";
+const NUDGE_KEY = "nudge:latest";
+const HISTORY_WEEKS = 8;
+const LOW_UPLOAD_THRESHOLD = 3;
+const NOTE_MAX = 2000;
+const ASK_DAYS = 14;
+const LOCAL_TOWNS = ["Poole", "Bournemouth", "Christchurch", "Wimborne", "Ferndown", "Broadstone", "Wareham", "Swanage"];
+const PHOTO_ASK = "Running low on fresh photos – snap a couple from this week's jobs and add them here:";
+const PHOTO_NUDGE = "If you've had a couple of jobs this week, a few photos would keep the posts fresh – add them here:";
 const LINE_MAX = 42;
 const SUB_MAX = 110;
 const CAPTION_MAX = 2200;
@@ -53,9 +64,24 @@ const AI_MODELS = [
   "@cf/meta/llama-4-scout-17b-16e-instruct",
 ];
 const SLOTS = [
-  { id: "001", day: "Monday", angle: "a recent install — a real job just finished, tidy and local" },
-  { id: "002", day: "Wednesday", angle: "a security or insulation benefit of a modern roller door" },
-  { id: "003", day: "Friday", angle: "a free survey call-to-action, no hard sell" },
+  { id: "001", day: "Monday" },
+  { id: "002", day: "Wednesday" },
+  { id: "003", day: "Friday" },
+];
+const ANGLE_DEFS = [
+  { id: "recent-install", group: "install", label: "a recent install — a real job just finished, tidy and local" },
+  { id: "before-after", group: "install", label: "a before-and-after — old door out, new roller in" },
+  { id: "security", group: "benefit", label: "a security benefit of a modern roller door" },
+  { id: "insulation", group: "benefit", label: "insulation or quiet operation — warmer, quieter, fewer draughts" },
+  { id: "seasonal-dark", group: "seasonal", months: [10, 11, 12, 1], label: "darker evenings — a garage that's easy and safe to get into after dark" },
+  { id: "seasonal-winter", group: "seasonal", months: [12, 1, 2], label: "winter cold — a well-insulated roller helping keep the garage warmer" },
+  { id: "seasonal-spring", group: "seasonal", months: [3, 4, 5], label: "a spring tidy-up — a good time to replace a tired garage door" },
+  { id: "seasonal-summer", group: "seasonal", months: [6, 7, 8], label: "summer garage use — a door that's easy to live with in warmer weather" },
+  { id: "local", group: "local" },
+  { id: "family-run", group: "business", label: "behind the scenes or family-run — the local team, honest and unshowy" },
+  { id: "free-survey", group: "cta", label: "how a free survey works — we come out, measure up, talk it through, no hard sell" },
+  { id: "maintenance", group: "tips", label: "a simple maintenance tip for a garage door, practical and honest" },
+  { id: "colours", group: "product", label: "choosing colours and finishes for a made-to-measure roller" },
 ];
 const HASHTAGS = {
   "001": "#OnARollGarageDoors #GarageDoors #RollerGarageDoor #Poole #Bournemouth #Christchurch #Dorset #FreeSurvey #FamilyRun",
@@ -95,6 +121,10 @@ export default {
     }
     if (cron === CRON_PUBLISH) {
       await publishDue(env, when);
+      return;
+    }
+    if (cron === CRON_NUDGE) {
+      await nudgeForPhotosIfNeeded(env, when);
       return;
     }
     console.log(JSON.stringify({ event: "unknown_cron", cron }));
@@ -208,6 +238,25 @@ async function route(request, env, path) {
       ? (await readJson(request, MAX_JSON_BYTES)) || {}
       : {};
     return json(501, publishPlaceholder(body.channel || "facebook"));
+  }
+
+  const regenMatch = path.match(/^\/regenerate\/([^/]+)$/);
+  if (regenMatch) {
+    if (method !== "POST") return methodNotAllowed("POST");
+    await requireKey(request, env);
+    return regeneratePost(request, env, regenMatch[1]);
+  }
+
+  if (path === "/notes") {
+    if (method === "GET") {
+      await requireKey(request, env);
+      return listNotes(env);
+    }
+    if (method === "POST") {
+      await requireKey(request, env);
+      return addNote(request, env);
+    }
+    return methodNotAllowed("GET, POST");
   }
 
   return json(404, { error: "not found" });
@@ -731,16 +780,32 @@ function withCors(response, origin) {
 
 async function generateWeek(env, { source, notify = true, now = new Date() } = {}) {
   const weekId = nextWeekMondayId(now);
-  const photos = await pickPhotos(env, SLOTS.length);
+  const history = await loadHistory(env);
+  const unusedNotes = (await loadNotes(env)).filter((n) => !n.usedAt);
+  const angles = pickAngles(SLOTS.length, now, history);
+  const assignments = assignNotesToSlots(unusedNotes, angles);
+  const preferIds = assignments.flatMap((a) => a.note?.photoIds || []);
+  const photos = await pickPhotos(env, SLOTS.length, { preferIds });
+  const avoidHeadlines = recentHeadlines(history);
   const posts = {};
   const sources = {};
+  const usedNotes = [];
+
   for (let i = 0; i < SLOTS.length; i++) {
-    const slot = SLOTS[i];
+    const base = SLOTS[i];
+    const angle = angles[i];
+    const note = assignments[i]?.note || null;
+    const slot = { ...base, angle: angle.label, angleId: angle.id, town: angle.town || null };
     const chosen = photos[i] || null;
-    const copy = await writeCopy(env, slot, chosen, weekId);
-    posts[slot.id] = buildPost(slot, chosen, copy);
+    const copy = await writeCopy(env, slot, chosen, weekId, { note, avoidHeadlines });
+    const post = buildPost(slot, chosen, copy, note);
+    posts[slot.id] = post;
     sources[slot.id] = copy.source;
+    if (note) usedNotes.push(note.id);
+    avoidHeadlines.push(`${post.line1} ${post.line2}`.replace(/\s+/g, " ").trim().toLowerCase());
   }
+
+  if (usedNotes.length) await markNotesUsed(env, usedNotes, weekId);
 
   const generatedAt = new Date().toISOString();
   const board = {
@@ -754,17 +819,22 @@ async function generateWeek(env, { source, notify = true, now = new Date() } = {
     updatedAt: generatedAt,
   };
 
+  await recordWeekHistory(env, history, board, angles, assignments);
+
+  const freshness = await photoFreshness(env, now);
   let notification = null;
   if (notify) {
     notification = await notify(env, {
       type: "ready",
       board,
+      ask: freshness.sundayAsk ? `${PHOTO_ASK} ${boardUrl(env)}` : null,
     });
     board._notify = {
       needsReview: true,
       boardUrl: boardUrl(env),
       sentAt: notification.sentAt,
       channels: notification.channels,
+      ask: freshness.sundayAsk || false,
     };
   }
 
@@ -776,12 +846,78 @@ async function generateWeek(env, { source, notify = true, now = new Date() } = {
     generatedBy: board.generatedBy,
     copySource: sources,
     photos: photos.map((p) => ({ id: p.id, label: p.label || null, origin: p.origin })),
+    angles: angles.map((a) => ({ id: a.id, group: a.group, town: a.town || undefined })),
+    notesUsed: usedNotes,
+    freshness,
     notification,
     board,
   };
 }
 
-function buildPost(slot, photo, copy) {
+async function regeneratePost(request, env, dayRaw) {
+  const slotId = parseDaySlot(dayRaw);
+  if (!slotId) return json(400, { error: "day must be monday, wednesday or friday" });
+  const slotBase = SLOTS.find((s) => s.id === slotId);
+  const existing = (await env.KV.get(BOARD_KEY, "json")) || null;
+  if (!existing || !existing[slotId]) {
+    return json(404, { error: "no post for that day yet — generate the week first" });
+  }
+
+  const url = new URL(request.url);
+  const newPhoto = ["1", "true", "new", "yes"].includes((url.searchParams.get("photo") || "").toLowerCase());
+  const now = new Date();
+  const weekId = existing.weekId || nextWeekMondayId(now);
+  const history = await loadHistory(env);
+  const currentAngleIds = SLOTS.map((s) => existing[s.id]?.angleId).filter(Boolean);
+  const angles = pickAngles(1, now, history, currentAngleIds);
+  const angle = angles[0];
+  const unusedNotes = (await loadNotes(env)).filter((n) => !n.usedAt);
+  const note = unusedNotes[0] || null;
+  const current = existing[slotId];
+  let photo = await photoFromBoard(env, current);
+  if (newPhoto || !photo) {
+    const preferIds = note?.photoIds || [];
+    const picked = await pickPhotos(env, 1, {
+      preferIds,
+      excludeIds: photo ? [photo.id] : [],
+    });
+    photo = picked[0] || photo;
+  }
+  const slot = { ...slotBase, angle: angle.label, angleId: angle.id, town: angle.town || null };
+  const copy = await writeCopy(env, slot, photo, weekId, {
+    note,
+    avoidHeadlines: recentHeadlines(history).concat(
+      SLOTS.map((s) => `${existing[s.id]?.line1 || ""} ${existing[s.id]?.line2 || ""}`.replace(/\s+/g, " ").trim().toLowerCase()).filter(Boolean),
+    ),
+  });
+  const post = buildPost(slot, photo, copy, note);
+  if (note) await markNotesUsed(env, [note.id], weekId);
+
+  const updatedAt = now.toISOString();
+  const copySource = { ...(existing.copySource || {}), [slotId]: copy.source };
+  const board = {
+    ...existing,
+    copySource,
+    [slotId]: post,
+    updatedAt,
+  };
+  await env.KV.put(BOARD_KEY, JSON.stringify(board));
+  await recordWeekHistory(env, history, board, null, null);
+  return json(200, {
+    ok: true,
+    day: slotBase.day,
+    slot: slotId,
+    photoChanged: newPhoto,
+    noteUsed: note ? note.id : null,
+    angle: { id: angle.id, group: angle.group, town: angle.town || undefined },
+    post,
+    board,
+  });
+}
+
+
+function buildPost(slot, photo, copy, note) {
+  const hashtagSlot = slot.angleId === "security" ? "002" : slot.angleId === "free-survey" ? "003" : slot.id;
   const post = {
     photo: photo ? photo.boardPhoto : null,
     customPhoto: photo && photo.origin === "upload" ? photo.id : null,
@@ -795,12 +931,16 @@ function buildPost(slot, photo, copy) {
     status: "awaiting",
     variant: 0,
     angle: slot.angle,
+    angleId: slot.angleId || null,
+    town: slot.town || null,
+    noteId: note?.id || null,
   };
-  post.caption = buildCaption(post, slot.id);
+  post.caption = buildCaption(post, hashtagSlot, slot.town);
   return post;
 }
 
-function buildCaption(post, slotId) {
+
+function buildCaption(post, slotId, town) {
   const hook = endCleanly(`${post.line1 || ""} ${post.line2 || ""}`.replace(/\s+/g, " ").trim());
   const sub = endCleanly(String(post.sub || "").replace(/\s+/g, " ").trim());
   let body = hook;
@@ -809,8 +949,14 @@ function buildCaption(post, slotId) {
   }
   if (!body) body = "Made-to-measure garage doors, fitted locally.";
   const lead = endCleanly(body);
-  return `${lead}\n\nFree survey → ${PHONE} · WhatsApp ${WHATSAPP_DISPLAY}\nonarollgaragedoors.co.uk\n\n${BRAND_SIGN_OFF}\n\n${HASHTAGS[slotId] || HASHTAGS["001"]}`;
+  let tags = HASHTAGS[slotId] || HASHTAGS["001"];
+  if (town) {
+    const tag = "#" + town.replace(/[^A-Za-z]/g, "");
+    if (!tags.toLowerCase().includes(tag.toLowerCase())) tags = `${tags} ${tag}`;
+  }
+  return `${lead}\n\nFree survey → ${PHONE} · WhatsApp ${WHATSAPP_DISPLAY}\nonarollgaragedoors.co.uk\n\n${BRAND_SIGN_OFF}\n\n${tags}`;
 }
+
 
 function endCleanly(text) {
   const value = String(text || "").replace(/\s+/g, " ").trim();
@@ -837,21 +983,38 @@ function nextWeekMondayId(d) {
 
 /* —— Photos —— */
 
-async function pickPhotos(env, count) {
+async function pickPhotos(env, count, { preferIds = [], excludeIds = [], record = true } = {}) {
   const pool = await loadPhotoPool(env);
   const used = (await env.KV.get(PHOTO_USED, "json")) || { items: {} };
   const items = used.items || used; // tolerate a flat map
   const now = new Date().toISOString();
+  const excluded = new Set(excludeIds.filter(Boolean));
+  const byId = new Map(pool.map((p) => [p.id, p]));
 
-  const unused = [];
-  const seen = [];
+  const unusedUploads = [];
+  const unusedManifest = [];
+  const usedUploads = [];
+  const usedManifest = [];
   for (const photo of pool) {
-    if (items[photo.id] && items[photo.id].usedAt) seen.push(photo);
-    else unused.push(photo);
+    if (excluded.has(photo.id)) continue;
+    const isUsed = !!(items[photo.id] && items[photo.id].usedAt);
+    if (photo.origin === "upload") {
+      (isUsed ? usedUploads : unusedUploads).push(photo);
+    } else {
+      (isUsed ? usedManifest : unusedManifest).push(photo);
+    }
   }
-  seen.sort((a, b) => String(items[a.id].usedAt).localeCompare(String(items[b.id].usedAt)));
+  unusedUploads.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  usedUploads.sort((a, b) => String(items[a.id].usedAt).localeCompare(String(items[b.id].usedAt)));
+  usedManifest.sort((a, b) => String(items[a.id].usedAt).localeCompare(String(items[b.id].usedAt)));
 
-  const ordered = [...unused, ...seen];
+  const prefer = [];
+  for (const id of preferIds) {
+    const photo = byId.get(id);
+    if (photo && !excluded.has(id)) prefer.push(photo);
+  }
+
+  const ordered = [...prefer, ...unusedUploads, ...unusedManifest, ...usedUploads, ...usedManifest];
   const picked = [];
   const pickedIds = new Set();
   for (const photo of ordered) {
@@ -860,21 +1023,23 @@ async function pickPhotos(env, count) {
     picked.push(photo);
     pickedIds.add(photo.id);
   }
-  // If the pool is smaller than count, reuse from the start.
   let i = 0;
   while (picked.length < count && ordered.length) {
     picked.push(ordered[i % ordered.length]);
     i += 1;
   }
 
-  const nextItems = { ...items };
-  for (const photo of picked) {
-    const prev = nextItems[photo.id] || { count: 0 };
-    nextItems[photo.id] = { usedAt: now, count: (prev.count || 0) + 1, origin: photo.origin };
+  if (record && picked.length) {
+    const nextItems = { ...items };
+    for (const photo of picked) {
+      const prev = nextItems[photo.id] || { count: 0 };
+      nextItems[photo.id] = { usedAt: now, count: (prev.count || 0) + 1, origin: photo.origin };
+    }
+    await env.KV.put(PHOTO_USED, JSON.stringify({ items: nextItems, updatedAt: now }));
   }
-  await env.KV.put(PHOTO_USED, JSON.stringify({ items: nextItems, updatedAt: now }));
   return picked;
 }
+
 
 async function loadPhotoPool(env) {
   const pool = [];
@@ -915,6 +1080,7 @@ async function loadPhotoPool(env) {
       origin: "upload",
       boardPhoto: id,
       src: null,
+      createdAt: entry.createdAt || null,
     });
   }
   return pool;
@@ -922,17 +1088,17 @@ async function loadPhotoPool(env) {
 
 /* —— Copy —— */
 
-async function writeCopy(env, slot, photo, weekId) {
+async function writeCopy(env, slot, photo, weekId, context = {}) {
   if (env.AI && typeof env.AI.run === "function") {
     for (let attempt = 1; attempt <= 2; attempt++) {
-      const generated = await generateWithAi(env, slot, photo, weekId, attempt);
+      const generated = await generateWithAi(env, slot, photo, weekId, attempt, context);
       if (generated) return { ...generated, source: "ai", attempt };
     }
   }
-  return { ...templateCopy(slot, weekId), source: "template" };
+  return { ...templateCopy(slot, weekId, context), source: "template" };
 }
 
-async function generateWithAi(env, slot, photo, weekId, attempt) {
+async function generateWithAi(env, slot, photo, weekId, attempt, context = {}) {
   const model = AI_MODELS[(attempt - 1) % AI_MODELS.length];
   const example = '{"line1":"Old door out.","line2":"New door in.","sub":"Made-to-measure roller, fitted tidy by the local team."}';
   const prompt = [
@@ -945,7 +1111,17 @@ async function generateWithAi(env, slot, photo, weekId, attempt) {
     "No pound signs, no prices, no 'since ...', no testimonials.",
     "Warranty, if mentioned at all, may only be written exactly as '5-year warranty'.",
     `This post is for ${slot.day}. Angle: ${slot.angle}.`,
-    photo && photo.label ? `The photo is one of Jon's real install photos (internal label: ${photo.label}). Do not mention that label in the copy. Only use a town or job detail if the label clearly contains a real place or description, not a generic name like "Install 7".` : "Do not invent a specific town or job.",
+    context.note && context.note.text
+      ? `Jon left this inspiration note. Use it faithfully. Do not invent extra job details, names or towns that are not in the note: "${String(context.note.text).slice(0, NOTE_MAX)}"`
+      : "",
+    photo && photo.origin === "upload"
+      ? "The photo is one of Jon's own recent uploads. Talk generally about a real install photo; do not invent a town or job unless the inspiration note names one."
+      : photo && photo.label
+        ? `The photo is one of Jon's real install photos (internal label: ${photo.label}). Do not mention that label in the copy. Only use a town or job detail if the label clearly contains a real place or description, not a generic name like "Install 7".`
+        : "Do not invent a specific town or job.",
+    Array.isArray(context.avoidHeadlines) && context.avoidHeadlines.length
+      ? `Do not repeat or closely rephrase any of these recent headlines: ${context.avoidHeadlines.slice(-24).join(" | ")}.`
+      : "",
     "Return ONLY a JSON object, no markdown, no preamble, with exactly these keys: line1, line2, sub.",
     `line1: first headline line, max ${LINE_MAX} characters, sentence case. It may be a short phrase.`,
     `line2: finishes the headline, max ${LINE_MAX} characters, sentence case, ending with a full stop or question mark.`,
@@ -995,6 +1171,11 @@ async function generateWithAi(env, slot, photo, weekId, attempt) {
     }
     if (!copy.line1 || !copy.line2) {
       console.log(JSON.stringify({ event: "copy_empty", slot: slot.id, attempt, model }));
+      return null;
+    }
+    const headline = `${copy.line1} ${copy.line2}`.replace(/\s+/g, " ").trim().toLowerCase();
+    if (Array.isArray(context.avoidHeadlines) && context.avoidHeadlines.includes(headline)) {
+      console.log(JSON.stringify({ event: "copy_repeated", slot: slot.id, attempt, model }));
       return null;
     }
     return copy;
@@ -1136,7 +1317,7 @@ function isTitleCase(text) {
   return false;
 }
 
-function templateCopy(slot, weekId) {
+function templateCopy(slot, weekId, context = {}) {
   const packs = {
     "001": [
       { line1: "Just fitted.", line2: "Looks the part.", sub: "Made-to-measure roller, fitted tidy by our local team." },
@@ -1156,20 +1337,348 @@ function templateCopy(slot, weekId) {
   };
   const list = packs[slot.id] || packs["001"];
   const seed = Number(String(weekId).replace(/\D/g, "").slice(-2) || 0);
-  const pick = list[seed % list.length];
-  const reason = validateCopy(pick);
-  if (reason) {
+  const avoided = new Set((context.avoidHeadlines || []).map((h) => String(h).toLowerCase()));
+  let pick = null;
+  for (let i = 0; i < list.length; i++) {
+    const candidate = list[(seed + i) % list.length];
+    const headline = `${candidate.line1} ${candidate.line2}`.replace(/\s+/g, " ").trim().toLowerCase();
+    if (avoided.has(headline)) continue;
+    if (validateCopy(candidate)) continue;
+    pick = candidate;
+    break;
+  }
+  if (!pick) {
     return { line1: "Made to measure.", line2: "Fitted locally.", sub: "Family-run garage door fitters in Poole, covering Dorset." };
   }
   return { ...pick };
 }
 
+
+/* —— Freshness, notes, and angles —— */
+
+async function loadHistory(env) {
+  const data = (await env.KV.get(HISTORY_KEY, "json")) || { weeks: [] };
+  const weeks = Array.isArray(data) ? data : data.weeks || [];
+  return weeks.filter(Boolean).slice(-HISTORY_WEEKS);
+}
+
+async function recordWeekHistory(env, history, board, angles, assignments) {
+  const posts = SLOTS.map((slot, i) => {
+    const post = board[slot.id] || {};
+    const angle = angles && angles[i];
+    return {
+      slot: slot.id,
+      day: slot.day,
+      line1: post.line1 || "",
+      line2: post.line2 || "",
+      sub: post.sub || "",
+      angle: post.angle || angle?.label || "",
+      angleId: post.angleId || angle?.id || null,
+      town: post.town || angle?.town || null,
+      photo: post.customPhoto || post.photo || null,
+      noteId: post.noteId || assignments?.[i]?.note?.id || null,
+    };
+  });
+  const previous = (history || []).find((w) => w && w.weekId === board.weekId) || null;
+  const seen = new Set([
+    ...((previous && previous.seenHeadlines) || []),
+    ...recentHeadlines([previous].filter(Boolean)),
+    ...posts.map((post) => `${post.line1 || ""} ${post.line2 || ""}`.replace(/\s+/g, " ").trim().toLowerCase()).filter(Boolean),
+  ]);
+  const entry = {
+    weekId: board.weekId,
+    generatedAt: board.generatedAt || board.updatedAt || new Date().toISOString(),
+    posts,
+    seenHeadlines: [...seen],
+  };
+  const next = (history || []).filter((w) => w && w.weekId !== entry.weekId);
+  next.push(entry);
+  await env.KV.put(HISTORY_KEY, JSON.stringify({ weeks: next.slice(-HISTORY_WEEKS) }));
+}
+
+function recentHeadlines(history) {
+  const list = [];
+  const seen = new Set();
+  const add = (headline) => {
+    const value = String(headline || "").replace(/\s+/g, " ").trim().toLowerCase();
+    if (!value || seen.has(value)) return;
+    seen.add(value);
+    list.push(value);
+  };
+  for (const week of history || []) {
+    for (const headline of week.seenHeadlines || []) add(headline);
+    for (const post of week.posts || []) {
+      add(`${post.line1 || ""} ${post.line2 || ""}`);
+    }
+  }
+  return list;
+}
+
+function recentAngleIds(history) {
+  const ids = new Set();
+  for (const week of history || []) {
+    for (const post of week.posts || []) {
+      if (post.angleId) ids.add(post.angleId);
+    }
+  }
+  return ids;
+}
+
+function recentTowns(history) {
+  const towns = [];
+  for (const week of history || []) {
+    for (const post of week.posts || []) {
+      if (post.town) towns.push(post.town);
+      if (post.angleId && post.angleId.startsWith("local-")) {
+        const name = post.angleId.slice("local-".length);
+        const match = LOCAL_TOWNS.find((t) => t.toLowerCase() === name);
+        if (match) towns.push(match);
+      }
+    }
+  }
+  return towns;
+}
+
+function nextTown(history) {
+  const used = new Set(recentTowns(history).map((t) => t.toLowerCase()));
+  const fresh = LOCAL_TOWNS.filter((t) => !used.has(t.toLowerCase()));
+  return (fresh.length ? fresh : LOCAL_TOWNS)[0];
+}
+
+function localAngle(history) {
+  const town = nextTown(history);
+  return {
+    id: `local-${town.toLowerCase()}`,
+    group: "local",
+    town,
+    label: `a local-area spotlight on ${town} — we cover this area; do not invent a specific job there unless an inspiration note describes one`,
+  };
+}
+
+function angleCandidates(now, history) {
+  const month = now.getUTCMonth() + 1;
+  const list = [];
+  for (const def of ANGLE_DEFS) {
+    if (def.group === "seasonal" && !(def.months || []).includes(month)) continue;
+    if (def.group === "local") {
+      list.push(localAngle(history));
+      continue;
+    }
+    list.push({ id: def.id, group: def.group, label: def.label });
+  }
+  return list;
+}
+
+function pickAngles(count, now, history, excludeIds = []) {
+  const recent = recentAngleIds(history);
+  for (const id of excludeIds) recent.add(id);
+  const candidates = angleCandidates(now, history);
+  const fresh = candidates.filter((c) => !recent.has(c.id));
+  const reused = candidates.filter((c) => recent.has(c.id));
+  const seed = Number(String(nextWeekMondayId(now)).replace(/\D/g, "").slice(-4) || 0) + (history?.length || 0) * 7 + excludeIds.length * 13;
+  const ordered = [...stableShuffle(fresh, seed), ...stableShuffle(reused, seed + 99)];
+  const picked = [];
+  const groups = new Set();
+  for (const pass of [true, false]) {
+    for (const candidate of ordered) {
+      if (picked.length >= count) break;
+      if (picked.some((p) => p.id === candidate.id)) continue;
+      if (pass && groups.has(candidate.group)) continue;
+      picked.push(candidate);
+      groups.add(candidate.group);
+    }
+  }
+  while (picked.length < count && candidates.length) {
+    picked.push(candidates[picked.length % candidates.length]);
+  }
+  return picked.slice(0, count);
+}
+
+function stableShuffle(list, seed) {
+  const copy = [...list];
+  let x = (Number(seed) || 1) % 2147483647;
+  if (x <= 0) x += 2147483646;
+  for (let i = copy.length - 1; i > 0; i--) {
+    x = (x * 16807) % 2147483647;
+    const j = x % (i + 1);
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+function angleForNote(note, angles) {
+  const text = String(note?.text || "").toLowerCase();
+  const prefer = [];
+  if (/\b(before|after|replaced|rip\s*out|old door)\b/.test(text)) prefer.push("before-after", "recent-install");
+  if (/\b(fitted|install|finished|today|this week|job)\b/.test(text)) prefer.push("recent-install");
+  if (/\b(lock|secure|security)\b/.test(text)) prefer.push("security");
+  if (/\b(warm|insulat|quiet|draught)\b/.test(text)) prefer.push("insulation");
+  if (/\b(survey|measure)\b/.test(text)) prefer.push("free-survey");
+  if (/\b(colour|color|finish|ral)\b/.test(text)) prefer.push("colours");
+  if (/\b(maintain|service|lubricat|spring)\b/.test(text)) prefer.push("maintenance");
+  for (const town of LOCAL_TOWNS) {
+    if (text.includes(town.toLowerCase())) prefer.push(`local-${town.toLowerCase()}`);
+  }
+  for (const id of prefer) {
+    const match = angles.find((a) => a.id === id);
+    if (match) return match;
+  }
+  return null;
+}
+
+function assignNotesToSlots(notes, angles) {
+  const leftover = [...(notes || [])];
+  const used = new Set();
+  const assignments = angles.map((angle) => {
+    const idx = leftover.findIndex((n, i) => !used.has(i) && angleForNote(n, [angle]));
+    const fallback = leftover.findIndex((n, i) => !used.has(i));
+    const pick = idx >= 0 ? idx : fallback;
+    if (pick < 0) return { angle, note: null };
+    used.add(pick);
+    return { angle, note: leftover[pick] };
+  });
+  return assignments;
+}
+
+async function loadNotes(env) {
+  const data = (await env.KV.get(NOTES_KEY, "json")) || { notes: [] };
+  const notes = Array.isArray(data) ? data : data.notes || [];
+  return notes.filter((n) => n && n.id && n.text);
+}
+
+async function saveNotes(env, notes) {
+  await env.KV.put(NOTES_KEY, JSON.stringify({ notes, updatedAt: new Date().toISOString() }));
+}
+
+async function listNotes(env) {
+  const notes = await loadNotes(env);
+  const ordered = [
+    ...notes.filter((n) => !n.usedAt).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt))),
+    ...notes.filter((n) => n.usedAt).sort((a, b) => String(b.usedAt).localeCompare(String(a.usedAt))),
+  ];
+  return json(200, { notes: ordered });
+}
+
+async function addNote(request, env) {
+  const body = (await readJson(request, MAX_JSON_BYTES)) || {};
+  const text = String(body.text || "").replace(/\s+/g, " ").trim();
+  if (!text) return json(400, { error: "text is required" });
+  if (text.length > NOTE_MAX) return json(400, { error: `text must be ${NOTE_MAX} characters or fewer` });
+  const photoIds = Array.isArray(body.photoIds)
+    ? body.photoIds.map((id) => String(id || "").trim()).filter((id) => ID_RE.test(id) || /^stock-\d+$/i.test(id)).slice(0, 8)
+    : [];
+  const note = {
+    id: randomId(),
+    text,
+    photoIds,
+    createdAt: new Date().toISOString(),
+    usedAt: null,
+    usedWeekId: null,
+  };
+  const notes = await loadNotes(env);
+  notes.push(note);
+  await saveNotes(env, notes);
+  return json(201, { ok: true, note });
+}
+
+async function markNotesUsed(env, ids, weekId) {
+  if (!ids?.length) return;
+  const set = new Set(ids);
+  const notes = await loadNotes(env);
+  const usedAt = new Date().toISOString();
+  let changed = false;
+  for (const note of notes) {
+    if (set.has(note.id) && !note.usedAt) {
+      note.usedAt = usedAt;
+      note.usedWeekId = weekId || null;
+      changed = true;
+    }
+  }
+  if (changed) await saveNotes(env, notes);
+}
+
+function parseDaySlot(value) {
+  const v = String(value || "").trim().toLowerCase();
+  const map = {
+    monday: "001", mon: "001", "001": "001",
+    wednesday: "002", wed: "002", "002": "002",
+    friday: "003", fri: "003", "003": "003",
+  };
+  return map[v] || null;
+}
+
+async function photoFromBoard(env, post) {
+  if (!post) return null;
+  const id = post.customPhoto || post.photo;
+  if (!id) return null;
+  const pool = await loadPhotoPool(env);
+  return pool.find((p) => p.id === id || p.boardPhoto === id) || {
+    id,
+    label: id,
+    origin: post.customPhoto ? "upload" : "manifest",
+    boardPhoto: post.photo || id,
+    src: null,
+  };
+}
+
+function thisWeekMonday(now) {
+  const day = (now.getUTCDay() + 6) % 7;
+  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  monday.setUTCDate(monday.getUTCDate() - day);
+  return monday;
+}
+
+async function photoFreshness(env, now = new Date()) {
+  const pool = await loadPhotoPool(env);
+  const used = (await env.KV.get(PHOTO_USED, "json")) || { items: {} };
+  const items = used.items || used;
+  const uploads = pool.filter((p) => p.origin === "upload");
+  const unusedUploads = uploads.filter((p) => !(items[p.id] && items[p.id].usedAt));
+  const notes = await loadNotes(env);
+  const lastUploadAt = uploads.reduce((max, p) => (p.createdAt && (!max || p.createdAt > max) ? p.createdAt : max), null);
+  const lastNoteAt = notes.reduce((max, n) => (n.createdAt && (!max || n.createdAt > max) ? n.createdAt : max), null);
+  const lastActivity = [lastUploadAt, lastNoteAt].filter(Boolean).sort().slice(-1)[0] || null;
+  const ageMs = lastActivity ? now.getTime() - Date.parse(lastActivity) : Infinity;
+  const stale = !Number.isFinite(ageMs) || ageMs >= ASK_DAYS * 24 * 60 * 60 * 1000;
+  const weekStart = thisWeekMonday(now).toISOString();
+  const uploadsThisWeek = uploads.filter((p) => p.createdAt && p.createdAt >= weekStart).length;
+  const low = unusedUploads.length < LOW_UPLOAD_THRESHOLD;
+  return {
+    unusedUploads: unusedUploads.length,
+    uploadCount: uploads.length,
+    lastActivity,
+    stale,
+    low,
+    uploadsThisWeek,
+    sundayAsk: low || stale,
+    thursdayNudge: low && uploadsThisWeek === 0,
+  };
+}
+
+async function nudgeForPhotosIfNeeded(env, now = new Date()) {
+  const freshness = await photoFreshness(env, now);
+  if (!freshness.thursdayNudge) {
+    return { skipped: true, reason: "not needed", freshness };
+  }
+  const weekId = thisWeekMonday(now).toISOString().slice(0, 10);
+  const previous = (await env.KV.get(NUDGE_KEY, "json")) || null;
+  if (previous && previous.weekId === weekId) {
+    return { skipped: true, reason: "already sent this week", freshness };
+  }
+  const url = boardUrl(env);
+  const text = `${PHOTO_NUDGE} ${url}`;
+  const notification = await notify(env, { type: "nudge", text, subject: defaultSubject("nudge") });
+  const record = { weekId, sentAt: notification.sentAt, boardUrl: url };
+  await env.KV.put(NUDGE_KEY, JSON.stringify(record));
+  return { skipped: false, notification, freshness };
+}
+
 /* —— Notifications —— */
 
-async function notify(env, { type, board, slot, subject, text } = {}) {
+async function notify(env, { type, board, slot, subject, text, ask } = {}) {
   const url = boardUrl(env);
   const sentAt = new Date().toISOString();
-  const message = text || buildNotifyText(type, board, slot, url);
+  const message = text || buildNotifyText(type, board, slot, url, ask);
   const mailSubject = subject || defaultSubject(type, slot);
   // The board key goes only in the one-off test email body, never in weekly
   // or reminder mail, WhatsApp, logs, or API responses.
@@ -1236,10 +1745,11 @@ function defaultSubject(type, slot) {
   if (type === "ready") return "This week's 3 On a Roll posts are ready to review";
   if (type === "reminder") return "Today's On a Roll post isn't approved yet";
   if (type === "test") return "[Test] On a Roll posts ready";
+  if (type === "nudge") return "On a Roll — a couple of fresh photos would help";
   return "On a Roll posts";
 }
 
-function buildNotifyText(type, board, slot, url) {
+function buildNotifyText(type, board, slot, url, ask) {
   if (type === "ready") {
     const lines = ["This week's 3 On a Roll posts are ready to review.", ""];
     for (const item of SLOTS) {
@@ -1248,6 +1758,9 @@ function buildNotifyText(type, board, slot, url) {
       lines.push(`${item.day}: ${headline}`);
     }
     lines.push("", "Review and edit them here:", url);
+    if (ask) {
+      lines.push("", ask);
+    }
     return lines.join("\n");
   }
   if (type === "reminder") {
