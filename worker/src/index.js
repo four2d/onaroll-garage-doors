@@ -1106,7 +1106,9 @@ async function generateWithAi(env, slot, photo, weekId, attempt, context = {}) {
     "covering Poole, Bournemouth, Christchurch and Dorset.",
     "Voice: local, honest, plain English. Like a tradesperson talking to a neighbour, not an advert.",
     "Use sentence case. Never Title Case. Never shout in ALL CAPS.",
-    "Do not invent jobs, prices, reviews, star ratings, accreditations or a founding year.",
+    "Do not invent jobs, job details, job locations, prices, reviews, star ratings, accreditations or a founding year.",
+    "Never name a town, street or 'town centre' unless that place appears in the inspiration note, or the photo label is clearly a real place name (not a generic label like 'Install 7').",
+    "If the angle is a local-area spotlight, talk about serving that town — that you cover it and will come out — and do not claim you have just done a job there.",
     "Do not use: guarantee, guaranteed, best, cheapest, No.1, #1, or any superlatives or salesy claims.",
     "No pound signs, no prices, no 'since ...', no testimonials.",
     "Warranty, if mentioned at all, may only be written exactly as '5-year warranty'.",
@@ -1164,7 +1166,13 @@ async function generateWithAi(env, slot, photo, weekId, attempt, context = {}) {
       sub: endCleanly(tidyLine(parsed.sub, SUB_MAX)),
       model,
     };
-    const reason = validateCopy(copy);
+    const reason = validateCopy(copy, {
+      note: context.note,
+      photo,
+      town: slot.town,
+      angleId: slot.angleId,
+    });
+
     if (reason) {
       console.log(JSON.stringify({ event: "copy_rejected", slot: slot.id, reason, attempt, model }));
       return null;
@@ -1260,7 +1268,7 @@ function tidyLine(value, max) {
   return (space >= 20 ? cut.slice(0, space) : cut).trim();
 }
 
-function validateCopy(copy) {
+function validateCopy(copy, context = {}) {
   const line1 = String(copy?.line1 || "");
   const line2 = String(copy?.line2 || "");
   const sub = String(copy?.sub || "");
@@ -1283,6 +1291,7 @@ function validateCopy(copy) {
   }
   if (isTitleCase(line1) || isTitleCase(line2)) return "title_case";
   if (isIncompleteLine(line1) || isIncompleteLine(line2) || isIncompleteLine(sub)) return "incomplete";
+  if (inventedLocation(value, context)) return "invented_location";
   if (line1.length > LINE_MAX || line2.length > LINE_MAX) return "too_long";
   if (sub.length > SUB_MAX) return "too_long";
   if (`${line1} ${line2} ${sub}`.length > CAPTION_MAX) return "too_long";
@@ -1294,7 +1303,62 @@ function isIncompleteLine(text) {
   const t = String(text || "").trim();
   if (/\b(for|to|with|and|or|a|an|the|of|by|from)[.!?]$/i.test(t)) return true;
   // "a job in." / "a home in." are unfinished; "New door in." and "the easy way in." are fine.
-  if (/\b(job|home|house|place|town|area)\s+in[.!?]$/i.test(t)) return true;
+  if (/\b(job|home|house|place|town|area)\s+in[.!?]?$/i.test(t)) return true;
+  if (/\bjust finished a job in\b/i.test(t)) return true;
+  if (/\b(finished|fitted|installed)\s+a\s+job\s+in\b/i.test(t)) return true;
+  return false;
+}
+
+function allowedPlaces(context) {
+  const places = new Set();
+  const blobs = [
+    context?.note?.text,
+    context?.photo?.label,
+    context?.photoLabel,
+  ];
+  for (const blob of blobs) {
+    const text = String(blob || "");
+    if (!text || /^install\s*\d+/i.test(text) || /^(security|local fit|roller install)$/i.test(text)) continue;
+    for (const town of LOCAL_TOWNS) {
+      if (new RegExp(`\\b${town}\\b`, "i").test(text)) places.add(town.toLowerCase());
+    }
+  }
+  return places;
+}
+
+function inventedLocation(value, context = {}) {
+  const text = String(value || "");
+  const allowed = allowedPlaces(context);
+  const spotlight = String(context.town || "").trim();
+  const isSpotlight = !!(spotlight && (context.angleId || "").startsWith("local-"));
+
+  if (/\btown\s+cent(?:re|er)\b/i.test(text) && !allowed.size) return true;
+
+  for (const town of LOCAL_TOWNS) {
+    if (!new RegExp(`\\b${town}\\b`, "i").test(text)) continue;
+    if (allowed.has(town.toLowerCase())) continue;
+
+    const jobClaim = new RegExp(
+      `\\b(just (did|done|fitted|finished)|fitted a|finished a|installed a|a job in|job in)\\b[^.!?]{0,50}\\b${town}\\b|\\b${town}\\b[^.!?]{0,40}\\b(today|this week|town\\s+cent(?:re|er))\\b`,
+      "i",
+    );
+    if (jobClaim.test(text)) return true;
+
+    if (isSpotlight && town.toLowerCase() === spotlight.toLowerCase()) {
+      // Serving the town is the point of a local spotlight. A specific job there is not.
+      continue;
+    }
+
+    // Poole as the family-run base, or a covering/across/around list, is brand language.
+    const covering = new RegExp(
+      `\\b(family-?run|based|local team|fitters?|from|covering|we cover|we come|come out|across|around|serving|area)\\b[^.!?]{0,60}\\b${town}\\b|\\b${town}\\b[^.!?]{0,60}\\b(and around|and the surrounding|area|fitters?|team)\\b`,
+      "i",
+    );
+    if (covering.test(text)) continue;
+
+    // Any other named town is an invented job location.
+    return true;
+  }
   return false;
 }
 
@@ -1561,12 +1625,12 @@ async function listNotes(env) {
 
 async function addNote(request, env) {
   const body = (await readJson(request, MAX_JSON_BYTES)) || {};
-  const text = String(body.text || "").replace(/\s+/g, " ").trim();
-  if (!text) return json(400, { error: "text is required" });
-  if (text.length > NOTE_MAX) return json(400, { error: `text must be ${NOTE_MAX} characters or fewer` });
   const photoIds = Array.isArray(body.photoIds)
-    ? body.photoIds.map((id) => String(id || "").trim()).filter((id) => ID_RE.test(id) || /^stock-\d+$/i.test(id)).slice(0, 8)
+    ? body.photoIds.map((id) => String(id || "").trim()).filter((id) => ID_RE.test(id) || /^stock-\d+$/i.test(id) || /^up-/.test(id)).slice(0, 8)
     : [];
+  const text = String(body.text || "").replace(/\s+/g, " ").trim();
+  if (!text && !photoIds.length) return json(400, { error: "text is required" });
+  if (text.length > NOTE_MAX) return json(400, { error: `text must be ${NOTE_MAX} characters or fewer` });
   const note = {
     id: randomId(),
     text,

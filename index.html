@@ -3357,35 +3357,37 @@
     setSimpleMsg(id, "Nice one — that’s approved.", "is-ok");
   }
 
-  async function regenerateSimple(id) {
+  async function regenerateSimple(id, opts = {}) {
     const slot = SLOTS.find(s => s.id === id);
     const day = (slot?.day || id).toLowerCase();
-    const btn = document.querySelector(`[data-simple-card="${id}"] [data-simple="regen"]`);
+    const newPhoto = !!opts.newPhoto;
+    const selector = `[data-simple-card="${id}"] [data-simple="${newPhoto ? "photo" : "regen"}"]`;
+    const btn = document.querySelector(selector);
     if (btn) btn.disabled = true;
-    setSimpleMsg(id, "Finding another idea…");
+    setSimpleMsg(id, newPhoto ? "Finding another photo…" : "Finding another idea…");
     try {
-      const res = await api("POST", `/regenerate/${encodeURIComponent(day)}`, { body: { id, day } });
-      if (res.status === 404 || res.status === 405 || res.status === 501) {
-        setSimpleMsg(id, "Coming soon");
-        return;
-      }
+      const path = `/regenerate/${encodeURIComponent(day)}` + (newPhoto ? "?photo=new" : "");
+      const res = await api("POST", path);
       if (!res.ok) throw new Error("regenerate failed");
       const data = await res.json();
       const incoming = data.post || data[id] || (data.line1 ? data : null);
-      if (data && data.updatedAt && (data["001"] || data["002"] || data["003"])) {
-        const merged = mergeBoards(loadState(), data);
-        if (data.updatedAt) boardBase = data.updatedAt;
+      const remoteBoard = data.board && (data.board["001"] || data.board["002"] || data.board["003"]) ? data.board : null;
+      if (remoteBoard) {
+        const merged = mergeBoards(loadState(), remoteBoard);
+        if (incoming) merged[id] = { ...(merged[id] || {}), ...incoming, status: "awaiting", generated: true };
+        if (remoteBoard.updatedAt) boardBase = remoteBoard.updatedAt;
         saveState(merged, { sync: false, touch: false });
         return;
       }
       if (!incoming || !incoming.line1) throw new Error("no post returned");
       const state = loadState();
       state[id] = { ...(state[id] || {}), ...incoming, status: "awaiting", generated: true };
-      saveState(state);
+      if (data.board && data.board.updatedAt) boardBase = data.board.updatedAt;
+      else if (data.updatedAt) boardBase = data.updatedAt;
+      saveState(state, { sync: false, touch: false });
     } catch (err) {
       console.warn("regenerate", err);
-      const missing = err instanceof TypeError || /failed to fetch|404|not found/i.test(String(err && err.message));
-      setSimpleMsg(id, missing ? "Coming soon" : "Couldn’t get another idea just now. Try again in a moment.", missing ? "" : "is-err");
+      setSimpleMsg(id, newPhoto ? "Couldn’t change the photo just now. Try again in a moment." : "Couldn’t get another idea just now. Try again in a moment.", "is-err");
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -3551,9 +3553,8 @@
       return;
     }
     const payload = {
-      note,
-      photoId: simpleJobPhotoId || null,
-      createdAt: new Date().toISOString()
+      text: note,
+      photoIds: simpleJobPhotoId ? [simpleJobPhotoId] : []
     };
     if (note || simpleJobPhotoId) {
       try {
@@ -3600,7 +3601,7 @@
       const action = btn.getAttribute("data-simple");
       if (action === "approve") approveSimple(id);
       if (action === "regen") regenerateSimple(id);
-      if (action === "photo") openPhotoSheet(id);
+      if (action === "photo") regenerateSimple(id, { newPhoto: true });
       if (action === "edit") openCaptionEditor(id);
       if (action === "save-words") saveSimpleCaption(id);
       if (action === "cancel-words") {
