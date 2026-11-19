@@ -29,7 +29,8 @@ destination_address = "dent.pete@gmail.com"
 # Sunday 18:00 UTC — generate next week's three drafts and notify.
 # Mon/Wed/Fri 08:00 UTC — remind if that day's post is not approved.
 # Mon/Wed/Fri 12:00 UTC — mark due-to-publish and call the Meta placeholders.
-crons = [ "0 18 * * SUN", "0 8 * * MON,WED,FRI", "0 12 * * MON,WED,FRI" ]
+# Thursday 17:00 UTC — at most one photo nudge, only if the pool is low.
+crons = [ "0 18 * * SUN", "0 8 * * MON,WED,FRI", "0 12 * * MON,WED,FRI", "0 17 * * THU" ]
 
 [observability]
 enabled = true

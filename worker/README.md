@@ -73,7 +73,10 @@ headers.
 | `POST` | `/publish/facebook` | yes | Placeholder — `501` “Meta not connected yet” |
 | `POST` | `/publish/instagram` | yes | Placeholder — `501` “Meta not connected yet” |
 | `POST` | `/publish` | yes | Same Meta placeholder used by the 12:00 cron |
-| `POST` | `/generate` | yes | Build next week's three awaiting drafts and notify |
+| `POST` | `/generate` | yes | Build next week's three awaiting drafts and notify (optional `{ "notify": false }`) |
+| `POST` | `/regenerate/:day` | yes | Rewrite one day's post (`monday`, `wednesday` or `friday`). Keep the photo unless `?photo=new` |
+| `GET` | `/notes` | yes | List inspiration notes, unused first |
+| `POST` | `/notes` | yes | Add an inspiration note (`{ "text", "photoIds"? }`) |
 | `POST` | `/notify/test` | yes | Send a one-off test email (and WhatsApp, if configured) |
 
 ### Board sync (`GET` / `PUT /board`)
@@ -207,6 +210,25 @@ template copy.
 
 ### Notifications
 
+**Freshness.** Each week the generator picks three different angles from a
+wider pool (recent install, before-and-after, security, insulation or quiet
+running, a seasonal hook from the date, a rotating local-area spotlight
+covering Poole, Bournemouth, Christchurch, Wimborne, Ferndown, Broadstone,
+Wareham and Swanage, behind the scenes or family-run, how a free survey
+works, a maintenance tip, and colours and finishes). The last eight weeks of
+headlines and angles are stored in KV and are not reused until they age out.
+Photos prefer Jon's unused uploads first, then unused library photos, then
+the least recently used. Unused inspiration notes are used first and then
+marked used.
+
+`POST /regenerate/:day` rewrites one day's post with a new angle and copy.
+The photo is kept unless the request includes `?photo=new`. A simple “Try
+another” button can call this route.
+
+`POST /notes` accepts a short note from Jon such as “Fitted a grey roller in
+Ferndown today, replaced an old up-and-over”, optionally with `photoIds`.
+`GET /notes` lists them, unused first.
+
 After a Sunday generate, `notify()` tells Pete (and later Jon) that the
 posts are ready. Recipients come from the Worker var `NOTIFY_EMAILS`
 (currently `dent.pete@gmail.com`; add Jon’s address later). The email is
@@ -214,7 +236,14 @@ sent with the `SEND_EMAIL` binding, from `onaroll-posts@foxonsoftware.com`,
 and never includes the board key. The Sunday message is “This week's 3 On a
 Roll posts are ready to review”, with a one-line summary of each post
 (day and headline) and a link to
-https://four2d.github.io/onaroll-garage-doors/.
+https://four2d.github.io/onaroll-garage-doors/. One short ask is added only
+when fewer than three unused uploaded photos remain, or when there have
+been no new uploads or notes in 14 days: “Running low on fresh photos –
+snap a couple from this week's jobs and add them here:” plus the plain
+board URL. Otherwise the mail has no ask.
+
+A Thursday 17:00 UTC cron may send at most one gentle nudge, and only when
+the uploaded photo pool is low and there were no uploads that week.
 
 WhatsApp uses the free [CallMeBot](https://www.callmebot.com/blog/free-api-whatsapp-messages/)
 API. The phone number is the Worker var `WHATSAPP_PHONE` (`+447854046904`).
@@ -238,6 +267,14 @@ email and WhatsApp.
   `/publish`. That returns `501` until Meta is connected, so the Worker
   logs the attempt and sets the post status to `publish-pending` with
   `publishNote: "Meta not connected"`, without erroring the cron.
+
+### Thursday photo nudge (17:00 UTC)
+
+If fewer than three unused uploaded photos remain and there were no
+uploads that week, send at most one gentle nudge (email and WhatsApp)
+with the plain board link, asking for a couple of photos from the week's
+jobs. If the pool is fine, or a nudge already went out this week, do
+nothing.
 
 `POST /notify/test` sends one test email with the subject
 `[Test] On a Roll posts ready`. That email is the only place that includes
