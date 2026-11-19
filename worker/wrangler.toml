@@ -1,0 +1,42 @@
+name = "onaroll-posts"
+main = "src/index.js"
+compatibility_date = "2026-11-19"
+account_id = "7e2fd6cc6c830ed939df10ccc0d2cb6c"
+workers_dev = true
+
+# Board state, photo binaries + metadata, archived weeks, and the used-photo log
+# all live in KV. R2 is not enabled on this account (dashboard enablement
+# required; may need a payment method). Photos are stored as binary KV values,
+# capped at 4 MiB.
+[[kv_namespaces]]
+binding = "KV"
+id = "7fa483e1737841b3b642d01293402879"
+
+[ai]
+binding = "AI"
+
+[vars]
+NOTIFY_EMAILS = "dent.pete@gmail.com"
+NOTIFY_FROM = "onaroll-posts@foxonsoftware.com"
+BOARD_URL = "https://four2d.github.io/onaroll-garage-doors/"
+WHATSAPP_PHONE = "+447854046904"
+
+[[send_email]]
+name = "SEND_EMAIL"
+destination_address = "dent.pete@gmail.com"
+
+[triggers]
+# Sunday 18:00 UTC — generate next week's three drafts and notify.
+# Mon/Wed/Fri 08:00 UTC — remind if that day's post is not approved.
+# Mon/Wed/Fri 12:00 UTC — mark due-to-publish and call the Meta placeholders.
+crons = [ "0 18 * * SUN", "0 8 * * MON,WED,FRI", "0 12 * * MON,WED,FRI" ]
+
+[observability]
+enabled = true
+
+# Secrets (set with `wrangler secret put`, never commit values):
+#   BOARD_KEY            required — sent by clients as the X-Board-Key header
+#   CALLMEBOT_APIKEY     optional — CallMeBot WhatsApp key; skipped if unset
+#   META_PAGE_TOKEN      later — Facebook Page access token
+#   META_PAGE_ID         later — Facebook Page id
+#   META_IG_USER_ID      later — Instagram business account id
