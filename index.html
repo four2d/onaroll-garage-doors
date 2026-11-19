@@ -536,25 +536,88 @@
       letter-spacing:.08em; text-transform:uppercase; padding:6px 10px; border-radius:999px;
     }
 
+    .unlock{
+      position:fixed; inset:0; z-index:80; background:var(--paper);
+      display:grid; place-items:center; padding:1.5rem;
+    }
+    .unlock[hidden]{display:none !important}
+    html.is-unlocked .unlock{display:none !important}
+    .unlock-card{
+      width:min(26rem,100%); background:var(--card); border:1px solid var(--line);
+      border-radius:var(--radius); box-shadow:var(--shadow); padding:1.45rem 1.25rem 1.35rem;
+    }
+    .unlock-card h1{margin:0; font-size:1.4rem; font-weight:750; letter-spacing:-.02em}
+    .unlock-card .lead{margin:.4rem 0 1rem; color:var(--muted); font-size:.95rem}
+    .unlock-card .btn-job{width:100%}
+    html:not(.is-unlocked) .app-shell{display:none}
+
+    .sync-status{
+      margin:.55rem 0 0; font-size:.8rem; font-weight:650;
+      color:#9fb3c0; min-height:1.15em;
+    }
+    .sync-status.is-ok{color:#8fd0ad}
+    .sync-status.is-pending{color:#e6d28a}
+    .sync-status.is-off{color:#f0c9a0}
+
+    .summary button.btn-email{
+      background:transparent; color:#d7e4ec; border:1.5px solid rgba(255,255,255,.28);
+      box-shadow:none; font-weight:650; font-size:.88rem;
+    }
+    .summary button.btn-email:hover{filter:none; background:rgba(255,255,255,.08)}
+    .summary button.btn-email.is-dim{opacity:.38}
+    .summary button.btn-email:disabled{cursor:not-allowed}
+
     .sr-only{
       position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
       clip:rect(0,0,0,0); white-space:nowrap; border:0;
     }
   </style>
+  <script>
+    /* Show the board immediately if a code is already saved, or is arriving in the URL hash.
+       The code itself is never hard-coded here — it lives in localStorage or a one-time link. */
+    (function(){
+      try {
+        if (localStorage.getItem("oar-jon-board-code")) document.documentElement.classList.add("is-unlocked");
+        if (/(?:^#|&)key=/.test(location.hash || "")) document.documentElement.classList.add("is-unlocked");
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
-  <header>
+  <div class="unlock" id="unlockScreen">
+    <div class="unlock-card">
+      <h1>On A Roll</h1>
+      <p class="lead">Enter the board code to review this week’s posts.</p>
+      <form id="unlockForm">
+        <div class="field">
+          <label for="boardCode">Board code</label>
+          <input id="boardCode" type="password" autocomplete="off" required />
+        </div>
+        <button type="submit" class="btn-job">Open the board</button>
+      </form>
+      <p class="status-line" id="unlockStatus" role="status"></p>
+    </div>
+  </div>
+
+  <header class="app-shell">
     <div class="row">
       <div>
-        <h1>This week’s posts <span class="pill" id="verPill">v44</span></h1>
-        <p>Start with a photo from a real job, then Approve when it looks right — or Edit / Change a weekday slot. Nothing goes live until Pete publishes.</p>
+        <h1>This week’s posts <span class="pill" id="verPill">v45</span></h1>
+        <p>This week’s posts are ready – review, edit, approve. Nothing goes live until they’re published.</p>
+        <p class="sync-status" id="syncStatus" role="status"></p>
         <p class="head-nav"><a href="archive/">Past weeks</a></p>
       </div>
     </div>
   </header>
 
-  <div class="wrap">
+  <div class="wrap app-shell">
     <div class="week-bar" id="weekBar" aria-label="Week progress"></div>
+
+    <div class="board-head" id="boardHead">
+      <h2>This week’s posts are ready</h2>
+      <p>Review, edit, approve. Monday, Wednesday and Friday — Instagram uses the same creative, square-cropped. Add a job below if you need to replace a post.</p>
+    </div>
+    <div class="stack" id="stack"></div>
 
     <section class="job-composer" id="jobComposer">
       <div class="job-intro" id="jobIntro">
@@ -612,22 +675,16 @@
         <p class="status-line" id="jobStatus" role="status"></p>
       </form>
     </section>
-
-    <div class="board-head" id="boardHead">
-      <h2>Your three posts</h2>
-      <p>Monday, Wednesday, Friday are still here if you want to tweak this week’s set. Instagram uses the same creative, square-cropped.</p>
-    </div>
-    <div class="stack" id="stack"></div>
   </div>
 
-  <div class="summary" id="summaryBar">
+  <div class="summary app-shell" id="summaryBar">
     <div class="summary-inner">
       <div class="summary-main">
         <div class="progress-track" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
         <p id="summaryText">0 of 3 done</p>
       </div>
       <div class="summary-actions">
-        <button type="button" id="emailPete" class="is-dim" disabled>Email Pete</button>
+        <button type="button" id="emailPete" class="btn-email is-dim" disabled>Email Pete</button>
         <button type="button" id="archiveWeek" class="btn-archive">Archive week</button>
       </div>
     </div>
@@ -643,6 +700,9 @@
   const DEFAULT_CTA = "Free survey · 01202 553603";
   const DEFAULT_PRICE_FROM = "From";
   const LIBRARY_SOFT_CAP = 40;
+  const API_BASE = "https://onaroll-posts.dent-pete.workers.dev";
+  const CODE_KEY = "oar-jon-board-code";
+  const PENDING_PHOTOS_KEY = "oar-jon-pending-photos-v1";
 
   // Stock pack — loaded from photos/manifest.json (FB exports + installs). Keep text overlays as-is.
   let PHOTOS = [
@@ -805,11 +865,25 @@
     return lib;
   }
   function libraryEntries() {
+    const seen = new Set();
+    const out = [];
+    for (const item of loadPendingPhotos()) {
+      if (!item?.id || seen.has(item.id)) continue;
+      seen.add(item.id);
+      out.push({ id: item.id, src: item.dataUrl || uploadCache[item.id], label: "Waiting to sync", kind: "upload" });
+    }
+    for (const p of remotePhotoIndex) {
+      if (!p?.id || seen.has(p.id)) continue;
+      seen.add(p.id);
+      out.push({ id: p.id, src: p.url, label: "Jon’s upload", kind: "upload" });
+    }
     const lib = loadLibrary();
-    return Object.keys(lib)
-      .sort()
-      .reverse()
-      .map(id => ({ id, src: lib[id], label: "Jon’s upload", kind: "upload" }));
+    for (const id of Object.keys(lib).sort().reverse()) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      out.push({ id, src: lib[id], label: "Jon’s upload", kind: "upload" });
+    }
+    return out;
   }
 
   /** Full gallery roll: Jon’s uploads first, then stock (Change + picker use this). */
@@ -907,13 +981,52 @@
       return {};
     } catch { return {}; }
   }
-  function saveState(state) {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); }
+  function slimState(state) {
+    const out = { ...state };
+    if (boardBase) out.updatedAt = boardBase;
+    if (out._uploads) {
+      const slim = {};
+      const pendingIds = new Set(loadPendingPhotos().map(p => p.id));
+      for (const [id, val] of Object.entries(out._uploads)) {
+        if (pendingIds.has(id) && typeof val === "string" && val.startsWith("data:")) slim[id] = val;
+      }
+      if (Object.keys(slim).length) out._uploads = slim;
+      else delete out._uploads;
+    }
+    return out;
+  }
+
+  let lastLocalSnap = {};
+  function snapshotPosts(state) {
+    const snap = {};
+    for (const slot of SLOTS) {
+      const post = state[slot.id];
+      if (!post) continue;
+      const { updatedAt, ...rest } = post;
+      snap[slot.id] = JSON.stringify(rest);
+    }
+    return snap;
+  }
+  function stampDirtyPosts(state) {
+    for (const slot of SLOTS) {
+      const post = state[slot.id];
+      if (!post) continue;
+      const { updatedAt, ...rest } = post;
+      const sig = JSON.stringify(rest);
+      if (lastLocalSnap[slot.id] !== sig) post.updatedAt = new Date().toISOString();
+    }
+  }
+
+  function saveState(state, opts = {}) {
+    if (opts.touch !== false) stampDirtyPosts(state);
+    try { localStorage.setItem(KEY, JSON.stringify(slimState(state))); }
     catch (err) {
       console.warn("localStorage full — keeping session only", err);
       setStudioStatus("Browser storage is full. Downloads still work; refresh may lose edits.", "err");
     }
+    lastLocalSnap = snapshotPosts(state);
     renderSummary(state);
+    if (opts.sync !== false) scheduleBoardPush();
   }
 
   function priceFromOf(post) {
@@ -997,8 +1110,12 @@
 
   function resolveSrc(id) {
     if (!id) return "";
+    const raw = String(id);
+    if (raw.startsWith("data:")) return raw;
+    if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
     if (uploadCache[id]) return uploadCache[id];
-    if (String(id).startsWith("data:")) return id;
+    const remote = remotePhotoIndex.find(p => p.id === id);
+    if (remote) return remote.url;
     const pid = resolvePhotoId(id);
     if (pid && uploadCache[pid]) return uploadCache[pid];
     const pack = PHOTOS.find(p => p.id === pid) || PHOTOS.find(p => p.id === id);
@@ -1006,7 +1123,14 @@
   }
 
   function photoSrc(post) {
-    if (post.customPhoto && uploadCache[post.customPhoto]) return uploadCache[post.customPhoto];
+    if (post.photoUrl) {
+      const fromUrl = resolveSrc(post.photoUrl);
+      if (fromUrl) return fromUrl;
+    }
+    if (post.customPhoto) {
+      const custom = resolveSrc(post.customPhoto);
+      if (custom) return custom;
+    }
     const after = resolveSrc(post.afterPhoto);
     if (after) return after;
     const fromPhoto = resolveSrc(post.photo);
@@ -1384,7 +1508,7 @@
     // keep caption on the hidden caption node in sync for approve path
     const cap = document.querySelector(`.fb[data-id="${selectedId}"] [data-caption]`);
     if (cap) cap.textContent = post.caption;
-    saveState(state);
+    saveState(state, { sync: opts.skipSync ? false : true });
     renderWeekBar(state);
     if (!opts.silent) {
       renderAll(state);
@@ -1824,7 +1948,7 @@
     if (note) {
       const shown = Math.min(photoShowCount, roll.length);
       note.textContent = uploadCount
-        ? `Gallery: ${shown} of ${roll.length} (${uploadCount} from Jon) — uploads stay on this device.`
+        ? `Gallery: ${shown} of ${roll.length} (${uploadCount} from Jon) — uploads are saved to the shared gallery.`
         : `Gallery: ${shown} of ${roll.length} — Upload adds to this roll for reuse.`;
     }
     row.querySelectorAll(".photo-pick[data-photo]").forEach(btn => {
@@ -1851,17 +1975,14 @@
       try {
         let lastId = null;
         const st = ensureState();
-        st._uploads = st._uploads || {};
         for (const file of files) {
           const dataUrl = await compressUpload(file);
-          const id = "up-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
-          rememberUpload(id, dataUrl);
-          st._uploads[id] = dataUrl;
-          lastId = id;
+          lastId = await storeUpload(dataUrl, file.name);
         }
         if (lastId) {
           st[selectedId].customPhoto = lastId;
           st[selectedId].photo = lastId;
+          st[selectedId].afterPhoto = lastId;
         }
         // Keep new uploads visible at the front of the roll
         photoShowCount = Math.max(photoShowCount, PHOTO_PAGE + files.length);
@@ -1872,8 +1993,8 @@
         commitSelected({ silent: true });
         setStudioStatus(
           files.length > 1
-            ? `${files.length} photos saved to the gallery.`
-            : "Photo saved to the gallery.",
+            ? `${files.length} photos saved to the shared gallery.`
+            : "Photo saved to the shared gallery.",
           "ok"
         );
       } catch (err) {
@@ -2129,14 +2250,14 @@
     }
     el.classList.toggle("ready", approved === 3);
     bar?.classList.toggle("ready-archive", approved === 3);
-    if (approved === 3) el.textContent = "All set — email Pete, then archive when posted.";
+    if (approved === 3) el.textContent = "All set — archive when the posts have gone out.";
     else if (approved === 0) el.textContent = "0 of 3 done — tap Approve on a post";
     else el.textContent = `${approved} of 3 done`;
 
     if (email) {
       email.disabled = approved === 0;
       email.classList.toggle("is-dim", approved === 0);
-      email.classList.toggle("is-hero", approved === 3);
+      email.classList.remove("is-hero");
     }
   }
 
@@ -2237,11 +2358,11 @@
       alert("Approve all three posts before archiving.");
       return;
     }
-    const ok = confirm("Archive this week?\n\nDownloads a dated week page + updates weeks.json.\nDrop both into the archive/ folder and push to GitHub Pages.");
+    const ok = confirm("Archive this week?\n\nThis saves the three approved posts to the shared archive.");
     if (!ok) return;
 
     const btn = document.getElementById("archiveWeek");
-    if (btn) { btn.disabled = true; btn.textContent = "Baking archive…"; }
+    if (btn) { btn.disabled = true; btn.textContent = "Saving archive…"; }
 
     try {
       const monday = mondayOf(new Date());
@@ -2270,27 +2391,30 @@
       const meta = { id, label, postedAt, file, posts: posts.map(p => ({
         day: p.day, line1: p.line1, line2: p.line2, sub: p.sub
       })) };
-
       const weekHTML = buildArchiveWeekHTML(meta, posts);
-      const weeks = await loadWeeksManifest();
-      const next = [meta, ...weeks.filter(w => w.id !== id)];
+      const res = await api("POST", "/archive", { body: { id, label, postedAt, file, html: weekHTML, posts } });
+      if (!res.ok) {
+        let message = "Couldn’t save the archive.";
+        try { const err = await res.json(); if (err?.error) message = err.error; } catch {}
+        throw new Error(message);
+      }
 
-      downloadTextFile(weekHTML, file, "text/html");
-      await new Promise(r => setTimeout(r, 450));
-      downloadTextFile(JSON.stringify(next, null, 2) + "\n", "weeks.json", "application/json");
-
-      const clear = confirm(`Saved ${file} and weeks.json.\n\nPut them in archive/ and push.\n\nClear the board for next week?`);
+      const clear = confirm("Week archived.\n\nClear the board for next week?");
       if (clear) {
         localStorage.removeItem(KEY);
+        lastLocalSnap = {};
         editorOpen = false;
         selectedId = "001";
         const fresh = ensureState();
+        saveState(fresh);
         renderWeekBar(fresh);
         renderAll(fresh);
+      } else {
+        setSyncStatus("synced");
       }
     } catch (err) {
       console.error(err);
-      alert("Couldn’t build the archive. Try again, or download each post from Edit → More options.");
+      alert(err && err.message ? err.message : "Couldn’t save the archive. Try again, or download each post from Edit → More options.");
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = "Archive week"; }
     }
@@ -2495,16 +2619,11 @@
   async function handleJobPhoto(which, file) {
     if (!file) return;
     const dataUrl = await compressUpload(file);
-    const id = "up-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
-    rememberUpload(id, dataUrl);
-    const st = ensureState();
-    st._uploads = st._uploads || {};
-    st._uploads[id] = dataUrl;
-    saveState(st);
+    const id = await storeUpload(dataUrl, file.name);
     jobUploads[which === "before" ? "beforeId" : "afterId"] = id;
     const img = document.getElementById(which === "before" ? "jobBeforePreview" : "jobAfterPreview");
     const slot = document.getElementById(which === "before" ? "jobBeforeSlot" : "jobAfterSlot");
-    if (img) { img.src = dataUrl; img.hidden = false; }
+    if (img) { img.src = resolveSrc(id) || dataUrl; img.hidden = false; }
     slot?.classList.add("has-img");
   }
 
@@ -2594,6 +2713,377 @@
     });
   }
 
+
+  /* —— Sync: board code, Worker API, photos —— */
+  /* The board code is stored only in localStorage (or a one-time #key= link). Never hard-code it. */
+  let boardBase = null;
+  let remotePhotoIndex = [];
+  let syncTimer = null;
+  let syncInFlight = false;
+  let syncDirty = false;
+  let syncRetries = 0;
+  let appStarted = false;
+
+  function getBoardCode() {
+    try { return localStorage.getItem(CODE_KEY) || ""; }
+    catch { return ""; }
+  }
+  function saveBoardCode(code) {
+    localStorage.setItem(CODE_KEY, String(code || "").trim());
+  }
+  function captureHashKey() {
+    const raw = String(location.hash || "").replace(/^#/, "");
+    if (!raw) return false;
+    let key = "";
+    try { key = new URLSearchParams(raw).get("key") || new URLSearchParams(raw).get("code") || ""; }
+    catch { key = ""; }
+    if (!key && raw.startsWith("key=")) key = decodeURIComponent(raw.slice(4).split("&")[0] || "");
+    key = String(key || "").trim();
+    if (!key) return false;
+    saveBoardCode(key);
+    history.replaceState(null, "", location.pathname + location.search);
+    return true;
+  }
+
+  function setUnlockStatus(msg, kind) {
+    const el = document.getElementById("unlockStatus");
+    if (!el) return;
+    el.textContent = msg || "";
+    el.className = "status-line" + (kind ? " " + kind : "");
+  }
+  function showUnlock(message) {
+    document.documentElement.classList.remove("is-unlocked");
+    const screen = document.getElementById("unlockScreen");
+    if (screen) screen.hidden = false;
+    if (message) setUnlockStatus(message, "err");
+    const input = document.getElementById("boardCode");
+    if (input) setTimeout(() => input.focus(), 50);
+  }
+  function hideUnlock() {
+    document.documentElement.classList.add("is-unlocked");
+    const screen = document.getElementById("unlockScreen");
+    if (screen) screen.hidden = true;
+    setUnlockStatus("");
+  }
+
+  function setSyncStatus(kind) {
+    const el = document.getElementById("syncStatus");
+    if (!el) return;
+    const labels = {
+      synced: "Synced",
+      saving: "Saving…",
+      offline: "Offline – will sync",
+    };
+    el.textContent = labels[kind] || "";
+    el.className = "sync-status" + (kind === "synced" ? " is-ok" : kind === "saving" ? " is-pending" : kind === "offline" ? " is-off" : "");
+  }
+
+  async function api(method, path, opts = {}) {
+    const headers = { "X-Board-Key": getBoardCode() };
+    if (opts.base) headers["X-Board-Base"] = opts.base;
+    const init = { method, headers };
+    if (opts.body !== undefined) {
+      headers["Content-Type"] = "application/json";
+      init.body = JSON.stringify(opts.body);
+    }
+    return fetch(API_BASE + path, init);
+  }
+
+  function postTime(post) {
+    const t = Date.parse(post?.updatedAt || "");
+    return Number.isFinite(t) ? t : 0;
+  }
+  function mergeBoards(local, remote) {
+    const out = { ...(remote || {}) };
+    for (const slot of SLOTS) {
+      const a = local?.[slot.id];
+      const b = remote?.[slot.id];
+      if (a && b) out[slot.id] = postTime(a) >= postTime(b) ? a : b;
+      else if (a) out[slot.id] = a;
+      else if (b) out[slot.id] = b;
+    }
+    return out;
+  }
+  function boardPayload(state) {
+    const out = {};
+    for (const slot of SLOTS) {
+      if (!state[slot.id]) continue;
+      const post = { ...state[slot.id] };
+      for (const k of ["photo", "customPhoto", "afterPhoto", "beforePhoto", "photoUrl"]) {
+        if (typeof post[k] === "string" && post[k].startsWith("data:")) delete post[k];
+      }
+      out[slot.id] = post;
+    }
+    return out;
+  }
+
+  function scheduleBoardPush() {
+    if (!getBoardCode()) return;
+    syncDirty = true;
+    if (!navigator.onLine) {
+      setSyncStatus("offline");
+      return;
+    }
+    setSyncStatus("saving");
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => { pushBoard(); }, 1000);
+  }
+
+  async function pushBoard() {
+    if (!getBoardCode() || syncInFlight) return;
+    if (!navigator.onLine) {
+      setSyncStatus("offline");
+      return;
+    }
+    syncInFlight = true;
+    syncDirty = false;
+    setSyncStatus("saving");
+    try {
+      if (editorOpen) commitSelected({ silent: true, skipSync: true });
+      const payload = boardPayload(ensureState());
+      const res = await api("PUT", "/board", { body: payload, base: boardBase || undefined });
+      if (res.status === 401 || res.status === 403) {
+        showUnlock("That code didn’t work. Try again.");
+        return;
+      }
+      if (res.status === 409) {
+        const data = await res.json().catch(() => ({}));
+        const current = data.current || {};
+        if (editorOpen) commitSelected({ silent: true, skipSync: true });
+        const merged = mergeBoards(ensureState(), current);
+        boardBase = current.updatedAt || null;
+        saveState(merged, { sync: false, touch: false });
+        renderWeekBar(merged);
+        if (editorOpen) {
+          fillFormFromPost(merged[selectedId] || defaultPost(selectedId));
+          refreshCardCreative();
+        } else {
+          renderAll(merged);
+        }
+        syncInFlight = false;
+        syncRetries += 1;
+        if (syncRetries <= 3) return pushBoard();
+        setSyncStatus("offline");
+        return;
+      }
+      if (!res.ok) throw new Error("sync failed");
+      const saved = await res.json();
+      boardBase = saved.updatedAt || boardBase;
+      const st = ensureState();
+      st.updatedAt = boardBase;
+      saveState(st, { sync: false, touch: false });
+      syncRetries = 0;
+      setSyncStatus("synced");
+    } catch (err) {
+      console.warn("board sync", err);
+      syncDirty = true;
+      setSyncStatus("offline");
+    } finally {
+      syncInFlight = false;
+      if (syncDirty && navigator.onLine && syncRetries <= 3) scheduleBoardPush();
+    }
+  }
+
+  async function pullBoard() {
+    const res = await api("GET", "/board");
+    if (res.status === 401 || res.status === 403) {
+      showUnlock("That code didn’t work. Try again.");
+      throw new Error("unauthorized");
+    }
+    if (!res.ok) throw new Error("board fetch failed");
+    const remote = await res.json();
+    if (!remote || !remote.updatedAt) {
+      boardBase = null;
+      return { empty: true };
+    }
+    boardBase = remote.updatedAt;
+    const local = loadState();
+    const merged = mergeBoards(local, remote);
+    const localNewer = SLOTS.some(s => postTime(merged[s.id]) > postTime(remote[s.id]));
+    saveState(merged, { sync: false, touch: false });
+    lastLocalSnap = snapshotPosts(merged);
+    return { empty: false, localNewer };
+  }
+
+  function loadPendingPhotos() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(PENDING_PHOTOS_KEY) || "[]");
+      return Array.isArray(raw) ? raw : [];
+    } catch { return []; }
+  }
+  function savePendingPhotos(list) {
+    try {
+      if (!list.length) localStorage.removeItem(PENDING_PHOTOS_KEY);
+      else localStorage.setItem(PENDING_PHOTOS_KEY, JSON.stringify(list));
+    } catch (err) {
+      console.warn("pending photos", err);
+    }
+  }
+  function rewritePhotoId(state, fromId, toId) {
+    if (!fromId || !toId || fromId === toId) return;
+    for (const slot of SLOTS) {
+      const post = state[slot.id];
+      if (!post) continue;
+      for (const k of ["photo", "customPhoto", "afterPhoto", "beforePhoto"]) {
+        if (post[k] === fromId) post[k] = toId;
+      }
+    }
+    if (state._uploads && state._uploads[fromId]) {
+      delete state._uploads[fromId];
+    }
+    const lib = loadLibrary();
+    if (lib[fromId]) {
+      delete lib[fromId];
+      trySaveLibrary(lib);
+    }
+    delete uploadCache[fromId];
+  }
+
+  async function loadRemotePhotos() {
+    const res = await api("GET", "/photos");
+    if (!res.ok) return;
+    const data = await res.json();
+    remotePhotoIndex = Array.isArray(data.photos) ? data.photos : [];
+    for (const p of remotePhotoIndex) {
+      if (p?.id && p.url) uploadCache[p.id] = p.url;
+    }
+  }
+
+  async function publishPhoto(dataUrl, filename) {
+    const res = await api("POST", "/photos", { body: { dataUrl, filename: filename || null } });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "photo upload failed");
+    }
+    const meta = await res.json();
+    if (meta?.id && meta.url) {
+      uploadCache[meta.id] = meta.url;
+      remotePhotoIndex = [meta, ...remotePhotoIndex.filter(p => p.id !== meta.id)];
+    }
+    return meta;
+  }
+
+  async function storeUpload(dataUrl, filename) {
+    uploadCache["pending-temp"] = dataUrl;
+    if (navigator.onLine && getBoardCode()) {
+      try {
+        const meta = await publishPhoto(dataUrl, filename);
+        if (meta?.id) return meta.id;
+      } catch (err) {
+        console.warn("photo upload", err);
+      }
+    }
+    const id = "up-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+    uploadCache[id] = dataUrl;
+    rememberUpload(id, dataUrl);
+    const pending = loadPendingPhotos().filter(p => p.id !== id);
+    pending.push({ id, dataUrl, filename: filename || null, createdAt: new Date().toISOString() });
+    savePendingPhotos(pending);
+    setSyncStatus("offline");
+    return id;
+  }
+
+  async function flushPendingPhotos() {
+    const pending = loadPendingPhotos();
+    if (!pending.length || !navigator.onLine || !getBoardCode()) return;
+    const leftover = [];
+    const state = ensureState();
+    let changed = false;
+    for (const item of pending) {
+      try {
+        const meta = await publishPhoto(item.dataUrl, item.filename);
+        if (meta?.id) {
+          rewritePhotoId(state, item.id, meta.id);
+          changed = true;
+        } else leftover.push(item);
+      } catch (err) {
+        console.warn("pending photo", err);
+        leftover.push(item);
+      }
+    }
+    savePendingPhotos(leftover);
+    if (changed) saveState(state);
+  }
+
+  async function startApp() {
+    hideUnlock();
+    hydrateLibrary();
+    await loadPhotoManifest();
+    let pulled = { empty: true };
+    try {
+      await loadRemotePhotos();
+      await flushPendingPhotos();
+      pulled = await pullBoard();
+      if (pulled.localNewer || pulled.empty) scheduleBoardPush();
+      else setSyncStatus("synced");
+    } catch (err) {
+      if (err && err.message === "unauthorized") return;
+      console.warn(err);
+      setSyncStatus("offline");
+    }
+
+    const state = ensureState();
+    for (const slot of SLOTS) {
+      const item = state[slot.id];
+      if (item?.photo && PHOTO_ALIASES[item.photo]) item.photo = PHOTO_ALIASES[item.photo];
+    }
+    if (state._uploads) Object.assign(uploadCache, state._uploads);
+    lastLocalSnap = snapshotPosts(state);
+    saveState(state, { sync: pulled.empty || pulled.localNewer, touch: false });
+
+    selectedId = "001";
+    editorOpen = false;
+    if (!appStarted) {
+      wireJobComposer();
+      window.addEventListener("resize", () => scaleCardCreatives());
+      window.addEventListener("online", () => {
+        setSyncStatus("saving");
+        flushPendingPhotos().then(() => scheduleBoardPush());
+      });
+      window.addEventListener("offline", () => setSyncStatus("offline"));
+      appStarted = true;
+    }
+    renderWeekBar(state);
+    renderAll(state);
+
+    try {
+      await Promise.all([LOGO, ...PHOTOS.slice(0, 12).map(p => p.src)].map(loadImage));
+    } catch (err) {
+      console.warn(err);
+    }
+  }
+
+  function wireUnlock() {
+    const form = document.getElementById("unlockForm");
+    if (!form || form.dataset.wired === "1") return;
+    form.dataset.wired = "1";
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const input = document.getElementById("boardCode");
+      const code = String(input?.value || "").trim();
+      if (!code) {
+        setUnlockStatus("Enter the board code.", "err");
+        return;
+      }
+      saveBoardCode(code);
+      if (input) input.value = "";
+      setUnlockStatus("Opening the board…");
+      try {
+        const res = await api("GET", "/board");
+        if (res.status === 401 || res.status === 403) {
+          try { localStorage.removeItem(CODE_KEY); } catch {}
+          setUnlockStatus("That code didn’t work. Try again.", "err");
+          return;
+        }
+        if (!res.ok) throw new Error("board fetch failed");
+        await startApp();
+      } catch (err) {
+        console.warn(err);
+        setUnlockStatus("Couldn’t reach the board. Check your connection and try again.", "err");
+      }
+    });
+  }
+
   document.getElementById("emailPete").addEventListener("click", () => {
     const state = ensureState();
     const approved = SLOTS.filter(s => state[s.id]?.status === "approved").length;
@@ -2613,28 +3103,13 @@
 
   /* —— Init —— */
   (async function init() {
-    hydrateLibrary();
-    await loadPhotoManifest();
-    const state = ensureState();
-    // migrate old bg-* ids
-    for (const slot of SLOTS) {
-      const item = state[slot.id];
-      if (item?.photo && PHOTO_ALIASES[item.photo]) item.photo = PHOTO_ALIASES[item.photo];
+    captureHashKey();
+    wireUnlock();
+    if (!getBoardCode()) {
+      showUnlock();
+      return;
     }
-    if (state._uploads) Object.assign(uploadCache, state._uploads);
-
-    selectedId = "001";
-    editorOpen = false;
-    wireJobComposer();
-    renderWeekBar(state);
-    renderAll(state);
-    window.addEventListener("resize", () => scaleCardCreatives());
-
-    try {
-      await Promise.all([LOGO, ...PHOTOS.slice(0, 12).map(p => p.src)].map(loadImage));
-    } catch (err) {
-      console.warn(err);
-    }
+    await startApp();
   })();
   </script>
 </body>
