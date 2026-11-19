@@ -3,7 +3,7 @@
 Cloudflare Worker that stores Jon’s On a Roll social board so it can sync
 between devices, keep a photo library that is not capped by `localStorage`,
 archive an approved week without downloading two files and pushing them
-to GitHub, and generate next week's three drafts every Sunday.
+to GitHub, and write three fresh drafts as soon as the board is opened.
 
 Live URL (workers.dev):
 
@@ -73,7 +73,11 @@ headers.
 | `POST` | `/publish/facebook` | yes | Placeholder — `501` “Meta not connected yet” |
 | `POST` | `/publish/instagram` | yes | Placeholder — `501` “Meta not connected yet” |
 | `POST` | `/publish` | yes | Same Meta placeholder used by the 12:00 cron |
-| `POST` | `/generate` | yes | Build next week's three awaiting drafts and notify (optional `{ "notify": false }`) |
+| `POST` | `/generate` | yes | Force-build three awaiting drafts and notify (optional `{ "notify": false }`) |
+| `POST` | `/ensure-drafts` | yes | Idempotent: return the current unapproved set, or write one if none is waiting (never notifies). Returns `202` if another generate is in flight |
+| `GET` | `/schedule` | yes | List scheduled Mon/Wed/Fri weeks and whether the 4-week queue is full |
+| `POST` | `/schedule` | yes | Move a fully approved draft set into the next empty Mon/Wed/Fri week |
+| `DELETE` | `/schedule` | yes | Clear the scheduled queue (does not delete photos or notes) |
 | `POST` | `/regenerate/:day` | yes | Rewrite one day's post (`monday`, `wednesday` or `friday`). Keep the photo unless `?photo=new` |
 | `GET` | `/notes` | yes | List inspiration notes, unused first |
 | `POST` | `/notes` | yes | Add an inspiration note (`{ "text", "photoIds"? }`) |
@@ -169,12 +173,33 @@ account id can later be added as Worker secrets (`META_PAGE_TOKEN`,
 put those values in this repo.
 
 
-### Weekly drafts (`POST /generate` and Sunday 18:00 UTC)
+### Drafts on demand (`POST /ensure-drafts`) and the schedule
 
-A Cron Trigger at **Sunday 18:00 UTC** builds Monday, Wednesday and Friday
-drafts for the coming week, all with `status: "awaiting"`. The same job is
-exposed as `POST /generate` (requires `X-Board-Key`). Send
-`{ "notify": false }` to generate without emailing or pushing.
+Opening the simple view calls `POST /ensure-drafts` (requires `X-Board-Key`,
+never sends a notification). If an unapproved set of three drafts is already
+waiting, it is returned as-is. If the 4-week scheduled queue is full, the
+Worker returns `{ queueFull: true, schedule: { sortedUntil } }` and does not
+write a new set. Otherwise it writes one set, under a short KV lock so a
+reload or a second device cannot start a duplicate generate. A request that
+hits a held lock gets **202** `{ pending: true }` and should retry.
+
+When all three drafts are approved, `POST /schedule` (also `/schedule-approved`)
+moves them into the next empty Monday/Wednesday/Friday week and clears the
+draft board, so the next page load can write a fresh set. The current week is
+used only when all three 12:00 UTC slots are still in the future and free;
+otherwise the Worker uses the next week with no scheduled posts. Each post is
+stamped with `scheduledFor` (ISO date) and `scheduledLabel` (for example
+`Mon 23 Nov`). The queue is capped at four upcoming weeks. `GET /schedule`
+lists them; `DELETE /schedule` clears the queue for tests and does not
+touch photos or notes. `DELETE /board` only clears the draft board and the
+generate lock.
+
+`POST /generate` still force-builds a new draft set (optional
+`{ "notify": false }`).
+
+A Cron Trigger at **Sunday 18:00 UTC** only makes sure a draft set exists
+(via `ensure-drafts`) and sends the review message if something still
+needs reviewing for the coming week.
 
 Each post matches the board object on `jonbot/phase1-fixes`: `line1`, `line2`,
 `sub`, `cta`, `caption`, `photo`, `status`, `showPrice: false`, `priceFrom`,
@@ -229,8 +254,10 @@ another” button can call this route.
 Ferndown today, replaced an old up-and-over”, optionally with `photoIds`.
 `GET /notes` lists them, unused first.
 
-After a Sunday generate, `notify()` tells Pete (and later Jon) that the
-posts are ready. Recipients come from the Worker var `NOTIFY_EMAILS`
+The Sunday 18:00 UTC job only emails (and WhatsApps) when drafts still
+need a review, or when a post scheduled for the coming week is not yet
+approved. Page-load `ensure-drafts` never notifies. Recipients come from
+the Worker var `NOTIFY_EMAILS`
 (currently `dent.pete@gmail.com`; add Jon’s address later). The email is
 sent with the `SEND_EMAIL` binding, from `onaroll-posts@foxonsoftware.com`,
 and never includes the board key. The Sunday message is “This week's 3 On a
@@ -260,13 +287,15 @@ email and WhatsApp.
 
 ### Remind, then post (Mon / Wed / Fri)
 
-- **08:00 UTC** — if that day's post is still not `approved`, send a
-  reminder through the same channels: “Today's post isn't approved yet –
-  it'll go out at 12:00 as it is unless you edit it.”
-- **12:00 UTC** — mark the day's post as due-to-publish and call
-  `/publish`. That returns `501` until Meta is connected, so the Worker
-  logs the attempt and sets the post status to `publish-pending` with
-  `publishNote: "Meta not connected"`, without erroring the cron.
+- **08:00 UTC** — look up today's post in the scheduled queue (not the
+  draft board). If it is still not `approved`, send a reminder through
+  the same channels: “Today's post isn't approved yet – it'll go out at
+  12:00 as it is unless you edit it.”
+- **12:00 UTC** — look up today's scheduled post, mark it as
+  due-to-publish and call `/publish`. That returns `501` until Meta is
+  connected, so the Worker logs the attempt and sets the post status to
+  `publish-pending` with `publishNote: "Meta not connected"`, without
+  erroring the cron.
 
 ### Thursday photo nudge (17:00 UTC)
 

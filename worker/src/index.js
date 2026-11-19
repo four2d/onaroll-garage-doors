@@ -49,7 +49,11 @@ const CRON_NUDGE = "0 17 * * THU";
 const HISTORY_KEY = "history:weeks";
 const NOTES_KEY = "notes:inbox";
 const NUDGE_KEY = "nudge:latest";
+const SCHEDULE_KEY = "schedule:weeks";
+const DRAFT_LOCK_KEY = "draft:lock";
 const HISTORY_WEEKS = 8;
+const QUEUE_WEEKS = 4;
+const DRAFT_LOCK_MS = 90 * 1000;
 const LOW_UPLOAD_THRESHOLD = 3;
 const NOTE_MAX = 2000;
 const ASK_DAYS = 14;
@@ -112,7 +116,7 @@ export default {
     const cron = controller.cron;
     const when = new Date(controller.scheduledTime || Date.now());
     if (cron === CRON_GENERATE) {
-      await generateWeek(env, { source: "cron", notify: true, now: when });
+      await sundayEnsureDrafts(env, when);
       return;
     }
     if (cron === CRON_REMIND) {
@@ -218,6 +222,36 @@ async function route(request, env, path) {
     return json(200, result);
   }
 
+  if (path === "/ensure-drafts") {
+    if (method !== "POST") return methodNotAllowed("POST");
+    await requireKey(request, env);
+    const result = await ensureDrafts(env, { source: "ensure", notify: false, now: new Date() });
+    if (result.pending) return json(202, result);
+    return json(200, result);
+  }
+
+  if (path === "/schedule" || path === "/schedule-approved") {
+    if (method === "GET") {
+      await requireKey(request, env);
+      return json(200, await scheduleSummary(env, new Date()));
+    }
+    if (method === "POST") {
+      await requireKey(request, env);
+      const body = request.headers.get("Content-Type")?.includes("json")
+        ? (await readJson(request, MAX_JSON_BYTES)) || {}
+        : {};
+      const result = await scheduleApproved(env, new Date(), body);
+      const status = result.error && result.error !== "not_all_approved" && result.error !== "queue_full" && result.error !== "no_drafts" ? 400 : 200;
+      return json(status, result);
+    }
+    if (method === "DELETE") {
+      await requireKey(request, env);
+      await env.KV.delete(SCHEDULE_KEY);
+      return json(200, { ok: true, weeks: [] });
+    }
+    return methodNotAllowed("GET, POST, DELETE");
+  }
+
   if (path === "/notify/test") {
     if (method !== "POST") return methodNotAllowed("POST");
     await requireKey(request, env);
@@ -278,6 +312,7 @@ async function getBoard(env) {
 
 async function deleteBoard(env) {
   await env.KV.delete(BOARD_KEY);
+  await env.KV.delete(DRAFT_LOCK_KEY);
   return json(200, { ok: true, updatedAt: null });
 }
 
@@ -778,8 +813,8 @@ function withCors(response, origin) {
 
 /* —— Weekly generation —— */
 
-async function generateWeek(env, { source, notify = true, now = new Date() } = {}) {
-  const weekId = nextWeekMondayId(now);
+async function generateWeek(env, { source, notify = true, now = new Date(), weekId: forcedWeekId } = {}) {
+  const weekId = forcedWeekId || nextWeekMondayId(now);
   const history = await loadHistory(env);
   const unusedNotes = (await loadNotes(env)).filter((n) => !n.usedAt);
   const angles = pickAngles(SLOTS.length, now, history);
@@ -1992,26 +2027,382 @@ function slotForDate(d) {
   return null;
 }
 
+
+/* —— Immediate drafts and the scheduled queue —— */
+
+function isoDate(d) {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
+function addUtcDays(d, days) {
+  const next = new Date(d.getTime());
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
+function mondayFromWeekId(weekId) {
+  const [y, m, d] = String(weekId || "").split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+function slotOffset(slotId) {
+  if (slotId === "002") return 2;
+  if (slotId === "003") return 4;
+  return 0;
+}
+
+function slotPublishAt(monday, slotId) {
+  const at = addUtcDays(monday, slotOffset(slotId));
+  at.setUTCHours(12, 0, 0, 0);
+  return at;
+}
+
+function formatDayLabel(d) {
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${days[d.getUTCDay()]} ${d.getUTCDate()} ${months[d.getUTCMonth()]}`;
+}
+
+function firstOpenMonday(now) {
+  let monday = thisWeekMonday(now);
+  // Current week only if every Mon/Wed/Fri 12:00 UTC slot is still in the future and free.
+  const allFuture = SLOTS.every((slot) => slotPublishAt(monday, slot.id).getTime() > now.getTime());
+  if (!allFuture) monday = addUtcDays(monday, 7);
+  return monday;
+}
+
+function weekFriday(monday) {
+  return slotPublishAt(monday, "003");
+}
+
+async function loadSchedule(env) {
+  const data = (await env.KV.get(SCHEDULE_KEY, "json")) || { weeks: [] };
+  const weeks = Array.isArray(data) ? data : data.weeks || [];
+  return { weeks: weeks.filter((w) => w && w.weekId), updatedAt: data.updatedAt || null };
+}
+
+async function saveSchedule(env, schedule) {
+  const payload = {
+    weeks: (schedule.weeks || []).slice(),
+    updatedAt: new Date().toISOString(),
+  };
+  await env.KV.put(SCHEDULE_KEY, JSON.stringify(payload));
+  return payload;
+}
+
+function scheduledWeekIds(schedule) {
+  return new Set((schedule.weeks || []).map((w) => w.weekId));
+}
+
+function nextEmptyWeek(now, schedule) {
+  const first = firstOpenMonday(now);
+  const capMonday = addUtcDays(first, (QUEUE_WEEKS - 1) * 7);
+  const used = scheduledWeekIds(schedule);
+  let monday = new Date(first.getTime());
+  for (let i = 0; i < QUEUE_WEEKS + 4; i++) {
+    const id = isoDate(monday);
+    if (monday.getTime() > capMonday.getTime()) break;
+    if (!used.has(id)) {
+      return { weekId: id, monday, full: false };
+    }
+    monday = addUtcDays(monday, 7);
+  }
+  const upcoming = (schedule.weeks || [])
+    .map((w) => mondayFromWeekId(w.weekId))
+    .filter(Boolean)
+    .sort((a, b) => a.getTime() - b.getTime());
+  const last = upcoming[upcoming.length - 1] || capMonday;
+  return { full: true, weekId: null, monday: null, sortedUntil: formatDayLabel(weekFriday(last)) };
+}
+
+function stampDraftDates(board, weekId) {
+  if (!board || !weekId) return board;
+  const monday = mondayFromWeekId(weekId);
+  if (!monday) return board;
+  for (const slot of SLOTS) {
+    const post = board[slot.id];
+    if (!post) continue;
+    const when = slotPublishAt(monday, slot.id);
+    post.scheduledFor = isoDate(when);
+    post.scheduledLabel = formatDayLabel(when);
+    post.scheduledWeekId = weekId;
+  }
+  board.targetWeekId = weekId;
+  return board;
+}
+
+function boardHasDrafts(board) {
+  if (!board) return false;
+  return SLOTS.every((slot) => board[slot.id] && String(board[slot.id].line1 || "").trim());
+}
+
+function boardAllApproved(board) {
+  return boardHasDrafts(board) && SLOTS.every((slot) => board[slot.id].status === "approved");
+}
+
+function scheduleSummaryFrom(schedule, now) {
+  const next = nextEmptyWeek(now, schedule);
+  const weeks = (schedule.weeks || []).map((week) => ({
+    weekId: week.weekId,
+    scheduledAt: week.scheduledAt,
+    days: SLOTS.map((slot) => ({
+      slot: slot.id,
+      day: slot.day,
+      scheduledFor: week[slot.id]?.scheduledFor || null,
+      scheduledLabel: week[slot.id]?.scheduledLabel || null,
+      status: week[slot.id]?.status || null,
+      line1: week[slot.id]?.line1 || null,
+      line2: week[slot.id]?.line2 || null,
+    })),
+  }));
+  const last = (schedule.weeks || [])
+    .map((w) => mondayFromWeekId(w.weekId))
+    .filter(Boolean)
+    .sort((a, b) => a.getTime() - b.getTime())
+    .slice(-1)[0];
+  return {
+    weeks,
+    cap: QUEUE_WEEKS,
+    full: !!next.full,
+    nextWeekId: next.weekId || null,
+    sortedUntil: next.full ? (next.sortedUntil || (last ? formatDayLabel(weekFriday(last)) : null)) : (last ? formatDayLabel(weekFriday(last)) : null),
+  };
+}
+
+async function scheduleSummary(env, now = new Date()) {
+  const schedule = await loadSchedule(env);
+  return scheduleSummaryFrom(schedule, now);
+}
+
+async function scheduledPostForDate(env, now) {
+  const slot = slotForDate(now);
+  if (!slot) return null;
+  const weekId = isoDate(thisWeekMonday(now));
+  const schedule = await loadSchedule(env);
+  const week = (schedule.weeks || []).find((w) => w.weekId === weekId);
+  if (!week || !week[slot.id]) return null;
+  return { weekId, slot, post: week[slot.id], schedule, week };
+}
+
+async function updateScheduledPost(env, weekId, slotId, post) {
+  const schedule = await loadSchedule(env);
+  const week = (schedule.weeks || []).find((w) => w.weekId === weekId);
+  if (!week) return false;
+  week[slotId] = post;
+  await saveSchedule(env, schedule);
+  return true;
+}
+
+async function readDraftLock(env) {
+  return (await env.KV.get(DRAFT_LOCK_KEY, "json")) || null;
+}
+
+async function acquireDraftLock(env) {
+  const now = Date.now();
+  const current = await readDraftLock(env);
+  if (current && Number(current.until) > now) return { ok: false, until: current.until };
+  const token = randomId();
+  const until = now + DRAFT_LOCK_MS;
+  await env.KV.put(DRAFT_LOCK_KEY, JSON.stringify({ token, until }), { expirationTtl: 120 });
+  const confirm = await readDraftLock(env);
+  if (!confirm || confirm.token !== token) return { ok: false, until: confirm?.until || until };
+  return { ok: true, token, until };
+}
+
+async function releaseDraftLock(env, token) {
+  const current = await readDraftLock(env);
+  if (current && current.token === token) await env.KV.delete(DRAFT_LOCK_KEY);
+}
+
+async function ensureDrafts(env, { source = "ensure", now = new Date() } = {}) {
+  const schedule = await loadSchedule(env);
+  const summary = scheduleSummaryFrom(schedule, now);
+  const existing = (await env.KV.get(BOARD_KEY, "json")) || null;
+
+  if (boardAllApproved(existing) && !existing._scheduled) {
+    const scheduled = await scheduleApproved(env, now);
+    if (scheduled.ok && scheduled.cleared) {
+      return ensureDrafts(env, { source, now });
+    }
+  }
+
+  if (boardHasDrafts(existing) && !existing._scheduled) {
+    const target = existing.targetWeekId || nextEmptyWeek(now, schedule).weekId;
+    stampDraftDates(existing, target);
+    return {
+      ok: true,
+      generated: false,
+      reason: "existing-drafts",
+      board: existing,
+      schedule: summary,
+      queueFull: !!summary.full,
+    };
+  }
+
+  if (summary.full) {
+    return {
+      ok: true,
+      generated: false,
+      reason: "queue-full",
+      board: { updatedAt: existing?.updatedAt || null },
+      schedule: summary,
+      queueFull: true,
+    };
+  }
+
+  const lock = await acquireDraftLock(env);
+  if (!lock.ok) {
+    return { ok: true, pending: true, reason: "locked", schedule: summary, queueFull: !!summary.full };
+  }
+
+  try {
+    const again = (await env.KV.get(BOARD_KEY, "json")) || null;
+    if (boardHasDrafts(again) && !again._scheduled) {
+      const target = again.targetWeekId || nextEmptyWeek(now, schedule).weekId;
+      stampDraftDates(again, target);
+      return {
+        ok: true,
+        generated: false,
+        reason: "existing-drafts",
+        board: again,
+        schedule: scheduleSummaryFrom(await loadSchedule(env), now),
+        queueFull: false,
+      };
+    }
+    const latestSchedule = await loadSchedule(env);
+    const next = nextEmptyWeek(now, latestSchedule);
+    if (next.full) {
+      const fullSummary = scheduleSummaryFrom(latestSchedule, now);
+      return {
+        ok: true,
+        generated: false,
+        reason: "queue-full",
+        board: { updatedAt: null },
+        schedule: fullSummary,
+        queueFull: true,
+      };
+    }
+    const result = await generateWeek(env, { source, notify: false, now, weekId: next.weekId });
+    stampDraftDates(result.board, next.weekId);
+    result.board.targetWeekId = next.weekId;
+    await env.KV.put(BOARD_KEY, JSON.stringify(result.board));
+    return {
+      ok: true,
+      generated: true,
+      reason: "generated",
+      board: result.board,
+      copySource: result.copySource,
+      weekId: next.weekId,
+      schedule: scheduleSummaryFrom(latestSchedule, now),
+      queueFull: false,
+      freshness: result.freshness,
+      notification: null,
+    };
+  } finally {
+    await releaseDraftLock(env, lock.token);
+  }
+}
+
+async function sundayEnsureDrafts(env, now = new Date()) {
+  const result = await ensureDrafts(env, { source: "cron", now });
+  // If another request holds the lock, a later page load will finish the set.
+  if (result.pending) return result;
+  const comingMonday = isoDate(firstOpenMonday(now));
+  const board = result.board || {};
+  const draftsNeedReview = boardHasDrafts(board) && !boardAllApproved(board) && !board._scheduled;
+  const schedule = await loadSchedule(env);
+  const coming = (schedule.weeks || []).find((w) => w.weekId === comingMonday);
+  const scheduledNeedReview = !!(coming && SLOTS.some((slot) => coming[slot.id] && coming[slot.id].status !== "approved" && coming[slot.id].status !== "publish-pending"));
+  if (draftsNeedReview || scheduledNeedReview) {
+    const notifyBoard = draftsNeedReview ? board : coming;
+    result.notification = await notify(env, {
+      type: "ready",
+      board: notifyBoard,
+      ask: result.freshness?.sundayAsk ? `${PHOTO_ASK} ${boardUrl(env)}` : null,
+    });
+  }
+  return result;
+}
+
+async function scheduleApproved(env, now = new Date(), incoming = null) {
+  let board = (await env.KV.get(BOARD_KEY, "json")) || null;
+  const clientBoard = incoming && typeof incoming === "object" && !Array.isArray(incoming)
+    ? (incoming.board && typeof incoming.board === "object" ? incoming.board : incoming)
+    : null;
+  if (!boardAllApproved(board) && boardAllApproved(clientBoard)) {
+    board = { ...(board || {}), ...clientBoard };
+  }
+  if (!boardHasDrafts(board)) {
+    return { ok: false, error: "no_drafts", schedule: await scheduleSummary(env, now) };
+  }
+  if (!boardAllApproved(board)) {
+    return { ok: false, error: "not_all_approved", board, schedule: await scheduleSummary(env, now) };
+  }
+  const schedule = await loadSchedule(env);
+  const next = nextEmptyWeek(now, schedule);
+  if (next.full) {
+    return { ok: false, error: "queue_full", schedule: scheduleSummaryFrom(schedule, now), queueFull: true };
+  }
+  const already = (schedule.weeks || []).find((w) => w.weekId === (board.scheduledWeekId || board.targetWeekId) && SLOTS.every((s) => w[s.id]?.line1 === board[s.id]?.line1));
+  if (already) {
+    return { ok: true, already: true, weekId: already.weekId, week: already, schedule: scheduleSummaryFrom(schedule, now), cleared: false };
+  }
+  const weekId = next.weekId;
+  const monday = next.monday;
+  const week = {
+    weekId,
+    scheduledAt: new Date().toISOString(),
+  };
+  for (const slot of SLOTS) {
+    const when = slotPublishAt(monday, slot.id);
+    week[slot.id] = {
+      ...board[slot.id],
+      status: "approved",
+      scheduledFor: isoDate(when),
+      scheduledLabel: formatDayLabel(when),
+      scheduledWeekId: weekId,
+    };
+  }
+  schedule.weeks = [...(schedule.weeks || []).filter((w) => w.weekId !== weekId), week];
+  await saveSchedule(env, schedule);
+  // Clear the draft board so the next page load can write a fresh set.
+  await env.KV.delete(BOARD_KEY);
+  await env.KV.delete(DRAFT_LOCK_KEY);
+  return {
+    ok: true,
+    weekId,
+    week,
+    board: { updatedAt: null, _scheduled: true, scheduledWeekId: weekId },
+    cleared: true,
+    schedule: scheduleSummaryFrom(schedule, now),
+    posts: Object.fromEntries(SLOTS.map((slot) => [slot.id, week[slot.id]])),
+  };
+}
+
 async function remindIfNeeded(env, now) {
   const slot = slotForDate(now);
   if (!slot) return { skipped: true, reason: "not a posting day" };
-  const board = await env.KV.get(BOARD_KEY, "json");
-  const post = board && board[slot.id];
-  if (!post) return { skipped: true, reason: "no post" };
+  const found = await scheduledPostForDate(env, now);
+  if (!found) return { skipped: true, reason: "no scheduled post" };
+  const post = found.post;
   if (post.status === "approved" || post.status === "publish-pending") {
     return { skipped: true, reason: `status is ${post.status}` };
   }
+  const board = { [slot.id]: post, weekId: found.weekId };
   const notification = await notify(env, { type: "reminder", board, slot });
-  return { ok: true, slot: slot.id, day: slot.day, notification };
+  return { ok: true, slot: slot.id, day: slot.day, weekId: found.weekId, notification };
 }
 
 async function publishDue(env, now) {
   const slot = slotForDate(now);
   if (!slot) return { skipped: true, reason: "not a posting day" };
-  const board = (await env.KV.get(BOARD_KEY, "json")) || {};
-  const post = board[slot.id];
-  if (!post) return { skipped: true, reason: "no post" };
-
+  const found = await scheduledPostForDate(env, now);
+  if (!found) return { skipped: true, reason: "no scheduled post" };
+  const post = found.post;
   post.dueToPublish = true;
   post.dueAt = new Date().toISOString();
 
@@ -2023,6 +2414,7 @@ async function publishDue(env, now) {
     event: "publish_attempt",
     slot: slot.id,
     day: slot.day,
+    weekId: found.weekId,
     status: post.status,
     facebook: attempts.facebook,
     instagram: attempts.instagram,
@@ -2031,13 +2423,12 @@ async function publishDue(env, now) {
   // 501 until Meta is connected — mark the post and do not error the cron.
   post.status = "publish-pending";
   post.publishNote = "Meta not connected";
-  board[slot.id] = post;
-  board.updatedAt = new Date().toISOString();
-  await env.KV.put(BOARD_KEY, JSON.stringify(board));
+  await updateScheduledPost(env, found.weekId, slot.id, post);
   return {
     ok: true,
     slot: slot.id,
     day: slot.day,
+    weekId: found.weekId,
     status: post.status,
     publishNote: post.publishNote,
     attempts,
