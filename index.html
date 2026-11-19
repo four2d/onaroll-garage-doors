@@ -549,6 +549,15 @@
     .unlock-card h1{margin:0; font-size:1.4rem; font-weight:750; letter-spacing:-.02em}
     .unlock-card .lead{margin:.4rem 0 1rem; color:var(--muted); font-size:.95rem}
     .unlock-card .btn-job{width:100%}
+    .unlock-card .unlock-fallback{
+      margin:1rem 0 0; text-align:center; font-size:.85rem;
+    }
+    .unlock-card .unlock-fallback button{
+      border:0; background:none; padding:0; color:var(--blue-dark);
+      font:inherit; font-weight:650; cursor:pointer; text-decoration:underline;
+      text-underline-offset:2px;
+    }
+    .unlock-card .unlock-step[hidden]{display:none !important}
     html:not(.is-unlocked) .app-shell{display:none}
 
     html.is-unlocked[data-view="simple"] #advancedApp{display:none !important}
@@ -743,8 +752,8 @@
        The code itself is never hard-coded here — it lives in localStorage or a one-time link. */
     (function(){
       try {
-        if (localStorage.getItem("oar-jon-board-code")) document.documentElement.classList.add("is-unlocked");
-        if (/(?:^#|&)key=/.test(location.hash || "")) document.documentElement.classList.add("is-unlocked");
+        if (localStorage.getItem("oar-jon-board-code") || localStorage.getItem("oar-jon-session")) document.documentElement.classList.add("is-unlocked");
+        if (/(?:^#|&)(key|login)=/.test(location.hash || "")) document.documentElement.classList.add("is-unlocked");
         var view = "simple";
         try { if (localStorage.getItem("oar-jon-view") === "advanced") view = "advanced"; } catch (e) {}
         document.documentElement.setAttribute("data-view", view);
@@ -756,14 +765,31 @@
   <div class="unlock" id="unlockScreen">
     <div class="unlock-card">
       <h1>On A Roll</h1>
-      <p class="lead">Enter the board code to review this week’s posts.</p>
+      <p class="lead" id="unlockLead">Enter your mobile number or email</p>
       <form id="unlockForm">
-        <div class="field">
-          <label for="boardCode">Board code</label>
-          <input id="boardCode" type="password" autocomplete="off" required />
+        <div class="unlock-step" id="unlockContactStep">
+          <div class="field">
+            <label for="unlockContact">Mobile number or email</label>
+            <input id="unlockContact" type="text" inputmode="email" autocomplete="username" autocapitalize="off" spellcheck="false" />
+          </div>
+          <button type="submit" class="btn-job" id="unlockSendBtn" data-unlock="send">Send me a code</button>
         </div>
-        <button type="submit" class="btn-job">Open the board</button>
+        <div class="unlock-step" id="unlockCodeStep" hidden>
+          <div class="field">
+            <label for="unlockCode">6-digit code</label>
+            <input id="unlockCode" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="6" />
+          </div>
+          <button type="submit" class="btn-job" id="unlockVerifyBtn" data-unlock="verify">Open the board</button>
+        </div>
+        <div class="unlock-step" id="unlockBoardStep" hidden>
+          <div class="field">
+            <label for="boardCode">Board code</label>
+            <input id="boardCode" type="password" autocomplete="off" />
+          </div>
+          <button type="submit" class="btn-job" data-unlock="board">Open the board</button>
+        </div>
       </form>
+      <p class="unlock-fallback" id="unlockFallbackWrap"><button type="button" id="unlockBoardFallback">Have a board code?</button></p>
       <p class="status-line" id="unlockStatus" role="status"></p>
     </div>
   </div>
@@ -940,6 +966,7 @@
   const LIBRARY_SOFT_CAP = 40;
   const API_BASE = "https://onaroll-posts.dent-pete.workers.dev";
   const CODE_KEY = "oar-jon-board-code";
+  const SESSION_KEY = "oar-jon-session";
   const VIEW_KEY = "oar-jon-view";
   const PENDING_PHOTOS_KEY = "oar-jon-pending-photos-v1";
   const PENDING_NOTES_KEY = "oar-jon-pending-notes-v1";
@@ -3039,11 +3066,24 @@
   function saveBoardCode(code) {
     localStorage.setItem(CODE_KEY, String(code || "").trim());
   }
+  function getSessionToken() {
+    try { return localStorage.getItem(SESSION_KEY) || ""; }
+    catch { return ""; }
+  }
+  function saveSessionToken(token) {
+    localStorage.setItem(SESSION_KEY, String(token || "").trim());
+  }
+  function getAuthToken() {
+    return getSessionToken() || getBoardCode();
+  }
+  function clearSessionToken() {
+    try { localStorage.removeItem(SESSION_KEY); } catch {}
+  }
   function captureHashKey() {
     const raw = String(location.hash || "").replace(/^#/, "");
     if (!raw) return false;
     let key = "";
-    try { key = new URLSearchParams(raw).get("key") || new URLSearchParams(raw).get("code") || ""; }
+    try { key = new URLSearchParams(raw).get("key") || ""; }
     catch { key = ""; }
     if (!key && raw.startsWith("key=")) key = decodeURIComponent(raw.slice(4).split("&")[0] || "");
     key = String(key || "").trim();
@@ -3051,6 +3091,18 @@
     saveBoardCode(key);
     history.replaceState(null, "", location.pathname + location.search);
     return true;
+  }
+  function takeLoginHash() {
+    const raw = String(location.hash || "").replace(/^#/, "");
+    if (!raw) return "";
+    let login = "";
+    try { login = new URLSearchParams(raw).get("login") || ""; }
+    catch { login = ""; }
+    if (!login && raw.startsWith("login=")) login = decodeURIComponent(raw.slice(6).split("&")[0] || "");
+    login = String(login || "").trim();
+    if (!login) return "";
+    history.replaceState(null, "", location.pathname + location.search);
+    return login;
   }
 
   function setUnlockStatus(msg, kind) {
@@ -3064,8 +3116,11 @@
     const screen = document.getElementById("unlockScreen");
     if (screen) screen.hidden = false;
     if (message) setUnlockStatus(message, "err");
-    const input = document.getElementById("boardCode");
-    if (input) setTimeout(() => input.focus(), 50);
+    const contact = document.getElementById("unlockContact");
+    const board = document.getElementById("boardCode");
+    const boardStep = document.getElementById("unlockBoardStep");
+    const focusEl = boardStep && !boardStep.hidden ? board : contact;
+    if (focusEl) setTimeout(() => focusEl.focus(), 50);
   }
   function hideUnlock() {
     document.documentElement.classList.add("is-unlocked");
@@ -3089,7 +3144,8 @@
   }
 
   async function api(method, path, opts = {}) {
-    const headers = { "X-Board-Key": getBoardCode() };
+    const headers = {};
+    if (opts.authToken || getAuthToken()) headers["X-Board-Key"] = opts.authToken || getAuthToken();
     if (opts.base) headers["X-Board-Base"] = opts.base;
     const init = { method, headers };
     if (opts.body !== undefined) {
@@ -3133,7 +3189,7 @@
   }
 
   function scheduleBoardPush() {
-    if (!getBoardCode()) return;
+    if (!getAuthToken()) return;
     if (draftsAlreadyScheduled()) return;
     syncDirty = true;
     if (!navigator.onLine) {
@@ -3146,7 +3202,7 @@
   }
 
   async function pushBoard() {
-    if (!getBoardCode() || syncInFlight) return;
+    if (!getAuthToken() || syncInFlight) return;
     if (draftsAlreadyScheduled()) {
       syncDirty = false;
       setSyncStatus("synced");
@@ -3164,7 +3220,9 @@
       const payload = boardPayload(loadState());
       const res = await api("PUT", "/board", { body: payload, base: boardBase || undefined });
       if (res.status === 401 || res.status === 403) {
-        showUnlock("That code didn’t work. Try again.");
+        clearSessionToken();
+        showUnlock("That sign-in isn’t valid any more. Enter your number or email for a new code.");
+        showUnlockStep("contact");
         return;
       }
       if (res.status === 409) {
@@ -3209,7 +3267,9 @@
   async function pullBoard() {
     const res = await api("GET", "/board");
     if (res.status === 401 || res.status === 403) {
-      showUnlock("That code didn’t work. Try again.");
+      clearSessionToken();
+      showUnlock("That sign-in isn’t valid any more. Enter your number or email for a new code.");
+      showUnlockStep("contact");
       throw new Error("unauthorized");
     }
     if (!res.ok) throw new Error("board fetch failed");
@@ -3292,7 +3352,7 @@
 
   async function storeUpload(dataUrl, filename) {
     uploadCache["pending-temp"] = dataUrl;
-    if (navigator.onLine && getBoardCode()) {
+    if (navigator.onLine && getAuthToken()) {
       try {
         const meta = await publishPhoto(dataUrl, filename);
         if (meta?.id) return meta.id;
@@ -3312,7 +3372,7 @@
 
   async function flushPendingPhotos() {
     const pending = loadPendingPhotos();
-    if (!pending.length || !navigator.onLine || !getBoardCode()) return;
+    if (!pending.length || !navigator.onLine || !getAuthToken()) return;
     const leftover = [];
     const state = loadState();
     let changed = false;
@@ -3560,7 +3620,7 @@
   }
 
   async function ensureDraftsOnLoad() {
-    if (!getBoardCode() || !navigator.onLine) return { ok: false };
+    if (!getAuthToken() || !navigator.onLine) return { ok: false };
     setPageBusy(true, "Writing your posts…");
     try {
       for (let attempt = 0; attempt < 40; attempt++) {
@@ -3797,7 +3857,7 @@
   }
   async function flushPendingNotes() {
     const pending = loadPendingNotes();
-    if (!pending.length || !navigator.onLine || !getBoardCode()) return;
+    if (!pending.length || !navigator.onLine || !getAuthToken()) return;
     const leftover = [];
     for (const item of pending) {
       try {
@@ -3932,30 +3992,163 @@
     }
   }
 
+  function showUnlockStep(step) {
+    const contact = document.getElementById("unlockContactStep");
+    const code = document.getElementById("unlockCodeStep");
+    const board = document.getElementById("unlockBoardStep");
+    const lead = document.getElementById("unlockLead");
+    const fallback = document.getElementById("unlockFallbackWrap");
+    if (contact) contact.hidden = step !== "contact";
+    if (code) code.hidden = step !== "code";
+    if (board) board.hidden = step !== "board";
+    if (lead) {
+      lead.textContent = step === "code"
+        ? "Enter the 6-digit code we sent"
+        : step === "board"
+          ? "Enter the board code to review this week’s posts."
+          : "Enter your mobile number or email";
+    }
+    if (fallback) fallback.hidden = step === "board";
+    const focusId = step === "code" ? "unlockCode" : step === "board" ? "boardCode" : "unlockContact";
+    const el = document.getElementById(focusId);
+    if (el) setTimeout(() => el.focus(), 50);
+  }
+
+  let pendingUnlockContact = "";
+
+  async function openBoardWithToken() {
+    const res = await api("GET", "/board");
+    if (res.status === 401 || res.status === 403) {
+      return { ok: false, unauthorized: true };
+    }
+    if (!res.ok) throw new Error("board fetch failed");
+    await startApp();
+    return { ok: true };
+  }
+
+  async function requestUnlockCode(contact) {
+    const res = await fetch(API_BASE + "/auth/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contact }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 400) {
+      setUnlockStatus(data.error || "Enter a mobile number or email", "err");
+      return false;
+    }
+    if (!res.ok) {
+      setUnlockStatus("Couldn’t send a code just now. Try again in a moment.", "err");
+      return false;
+    }
+    pendingUnlockContact = contact;
+    showUnlockStep("code");
+    setUnlockStatus(data.message || "If that's registered, a code is on its way");
+    return true;
+  }
+
+  async function verifyUnlockCode(contact, code) {
+    const res = await fetch(API_BASE + "/auth/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contact, code }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok || !data.session) {
+      setUnlockStatus(data.error || "That code isn’t valid or has expired.", "err");
+      return false;
+    }
+    saveSessionToken(data.session);
+    setUnlockStatus("Opening the board…");
+    const opened = await openBoardWithToken();
+    if (!opened.ok) {
+      clearSessionToken();
+      setUnlockStatus(opened.unauthorized ? "That code isn’t valid or has expired." : "Couldn’t reach the board. Try again.", "err");
+      return false;
+    }
+    return true;
+  }
+
+  async function verifyUnlockLogin(login) {
+    setUnlockStatus("Signing you in…");
+    const res = await fetch(API_BASE + "/auth/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ login }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok || !data.session) {
+      showUnlock(data.error || "That link isn’t valid or has expired.");
+      showUnlockStep("contact");
+      return false;
+    }
+    saveSessionToken(data.session);
+    const opened = await openBoardWithToken();
+    if (!opened.ok) {
+      clearSessionToken();
+      showUnlock(data.error || "That link isn’t valid or has expired.");
+      showUnlockStep("contact");
+      return false;
+    }
+    return true;
+  }
+
+  async function unlockWithBoardCode(code) {
+    saveBoardCode(code);
+    setUnlockStatus("Opening the board…");
+    try {
+      const opened = await openBoardWithToken();
+      if (opened.ok) return true;
+      try { localStorage.removeItem(CODE_KEY); } catch {}
+      setUnlockStatus("That code didn’t work. Try again.", "err");
+      return false;
+    } catch (err) {
+      console.warn(err);
+      setUnlockStatus("Couldn’t reach the board. Check your connection and try again.", "err");
+      return false;
+    }
+  }
+
   function wireUnlock() {
     const form = document.getElementById("unlockForm");
     if (!form || form.dataset.wired === "1") return;
     form.dataset.wired = "1";
+    document.getElementById("unlockBoardFallback")?.addEventListener("click", () => {
+      showUnlockStep("board");
+      setUnlockStatus("");
+    });
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const input = document.getElementById("boardCode");
-      const code = String(input?.value || "").trim();
-      if (!code) {
-        setUnlockStatus("Enter the board code.", "err");
-        return;
-      }
-      saveBoardCode(code);
-      if (input) input.value = "";
-      setUnlockStatus("Opening the board…");
+      const boardStep = document.getElementById("unlockBoardStep");
+      const codeStep = document.getElementById("unlockCodeStep");
       try {
-        const res = await api("GET", "/board");
-        if (res.status === 401 || res.status === 403) {
-          try { localStorage.removeItem(CODE_KEY); } catch {}
-          setUnlockStatus("That code didn’t work. Try again.", "err");
+        if (boardStep && !boardStep.hidden) {
+          const code = String(document.getElementById("boardCode")?.value || "").trim();
+          if (!code) {
+            setUnlockStatus("Enter the board code.", "err");
+            return;
+          }
+          document.getElementById("boardCode").value = "";
+          await unlockWithBoardCode(code);
           return;
         }
-        if (!res.ok) throw new Error("board fetch failed");
-        await startApp();
+        if (codeStep && !codeStep.hidden) {
+          const code = String(document.getElementById("unlockCode")?.value || "").replace(/\s+/g, "");
+          const contact = pendingUnlockContact || String(document.getElementById("unlockContact")?.value || "").trim();
+          if (!/^\d{6}$/.test(code)) {
+            setUnlockStatus("Enter the 6-digit code.", "err");
+            return;
+          }
+          await verifyUnlockCode(contact, code);
+          return;
+        }
+        const contact = String(document.getElementById("unlockContact")?.value || "").trim();
+        if (!contact) {
+          setUnlockStatus("Enter a mobile number or email.", "err");
+          return;
+        }
+        setUnlockStatus("Sending a code…");
+        await requestUnlockCode(contact);
       } catch (err) {
         console.warn(err);
         setUnlockStatus("Couldn’t reach the board. Check your connection and try again.", "err");
@@ -3984,8 +4177,15 @@
   (async function init() {
     captureHashKey();
     wireUnlock();
-    if (!getBoardCode()) {
+    const login = takeLoginHash();
+    if (login) {
       showUnlock();
+      await verifyUnlockLogin(login);
+      return;
+    }
+    if (!getAuthToken()) {
+      showUnlock();
+      showUnlockStep("contact");
       return;
     }
     await startApp();

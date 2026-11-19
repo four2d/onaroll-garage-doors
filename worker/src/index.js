@@ -51,6 +51,19 @@ const NOTES_KEY = "notes:inbox";
 const NUDGE_KEY = "nudge:latest";
 const SCHEDULE_KEY = "schedule:weeks";
 const DRAFT_LOCK_KEY = "draft:lock";
+const AUTH_OTP_PREFIX = "auth:otp:";
+const AUTH_LOGIN_PREFIX = "auth:login:";
+const AUTH_SESSION_PREFIX = "auth:session:";
+const AUTH_RL_CONTACT_PREFIX = "auth:rl:contact:";
+const AUTH_RL_IP_PREFIX = "auth:rl:ip:";
+const AUTH_LAST_DELIVERY = "auth:last-delivery";
+const AUTH_CODE_TTL_SEC = 10 * 60;
+const AUTH_SESSION_TTL_SEC = 180 * 24 * 60 * 60;
+const AUTH_RL_CONTACT_LIMIT = 3;
+const AUTH_RL_CONTACT_TTL_SEC = 15 * 60;
+const AUTH_RL_IP_LIMIT = 10;
+const AUTH_RL_IP_TTL_SEC = 60 * 60;
+const AUTH_MAX_ATTEMPTS = 5;
 const HISTORY_WEEKS = 8;
 const QUEUE_WEEKS = 4;
 const DRAFT_LOCK_MS = 90 * 1000;
@@ -145,6 +158,21 @@ async function route(request, env, path) {
       storage: "kv",
       typography: TYPOGRAPHY_MARK,
     });
+  }
+
+  if (path === "/auth/request") {
+    if (method !== "POST") return methodNotAllowed("POST");
+    return requestSignIn(request, env);
+  }
+  if (path === "/auth/verify") {
+    if (method !== "POST") return methodNotAllowed("POST");
+    return verifySignIn(request, env);
+  }
+  if (path === "/auth/delivery-status") {
+    if (method !== "GET") return methodNotAllowed("GET");
+    await requireKey(request, env);
+    const last = (await env.KV.get(AUTH_LAST_DELIVERY, "json")) || null;
+    return json(200, { ok: true, last });
   }
 
   if (path === "/board") {
@@ -845,6 +873,268 @@ async function repairStoredRecords(env) {
 
 /* —— Auth & CORS —— */
 
+
+/* —— Sign-in codes, magic links, and device sessions —— */
+
+const GENERIC_CODE_SENT = "If that's registered, a code is on its way";
+
+function clientIp(request) {
+  const cf = request.headers.get("CF-Connecting-IP") || "";
+  if (cf.trim()) return cf.trim();
+  const xff = request.headers.get("X-Forwarded-For") || "";
+  const first = xff.split(",")[0].trim();
+  return first || "unknown";
+}
+
+function normalizeEmail(raw) {
+  return String(raw || "").trim().toLowerCase().replace(/\s+/g, "");
+}
+
+function normalizePhone(raw) {
+  let s = String(raw || "").trim();
+  if (!s) return "";
+  s = s.replace(/[\s().-]/g, "");
+  if (s.startsWith("00")) s = "+" + s.slice(2);
+  if (s.startsWith("+")) return "+" + s.slice(1).replace(/\D/g, "");
+  const d = s.replace(/\D/g, "");
+  if (d.startsWith("0") && d.length === 11) return "+44" + d.slice(1);
+  if (d.startsWith("44") && d.length >= 12) return "+" + d;
+  if (d.startsWith("7") && d.length === 10) return "+44" + d;
+  return "";
+}
+
+function parseContact(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return { error: "empty" };
+  if (s.includes("@")) {
+    const email = normalizeEmail(s);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "format" };
+    return { kind: "email", value: email };
+  }
+  const phone = normalizePhone(s);
+  if (!/^\+44\d{10}$/.test(phone) && !/^\+\d{8,15}$/.test(phone)) return { error: "format" };
+  return { kind: "phone", value: phone };
+}
+
+function isAllowlisted(env, contact) {
+  const emails = notifyEmails(env).map((e) => normalizeEmail(e)).filter(Boolean);
+  const phone = normalizePhone(env.WHATSAPP_PHONE || "");
+  if (contact.kind === "email") return emails.includes(contact.value);
+  if (contact.kind === "phone") return !!phone && phone === contact.value;
+  return false;
+}
+
+async function sha256Hex(value) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(value)));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function randomDigits(len) {
+  const bytes = new Uint8Array(len);
+  crypto.getRandomValues(bytes);
+  let out = "";
+  for (let i = 0; i < len; i++) out += String(bytes[i] % 10);
+  return out;
+}
+
+function randomToken() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function testHookOk(request, env) {
+  const hook = env.AUTH_TEST_HOOK;
+  if (!hook) return false;
+  const provided = request.headers.get("X-Auth-Test") || "";
+  if (!provided) return false;
+  return keysMatch(provided, hook);
+}
+
+async function bumpRateLimit(env, key, limit, ttlSec) {
+  const current = (await env.KV.get(key, "json")) || { n: 0 };
+  if (Number(current.n) >= limit) return { ok: false, n: current.n };
+  const next = { n: Number(current.n || 0) + 1, at: new Date().toISOString() };
+  await env.KV.put(key, JSON.stringify(next), { expirationTtl: ttlSec });
+  return { ok: true, n: next.n };
+}
+
+async function recordDelivery(env, payload) {
+  await env.KV.put(AUTH_LAST_DELIVERY, JSON.stringify({
+    at: new Date().toISOString(),
+    channel: payload.channel || null,
+    ok: !!payload.ok,
+    error: payload.error || null,
+    test: !!payload.test,
+  }));
+}
+
+async function requestSignIn(request, env) {
+  const body = (await readJson(request, MAX_JSON_BYTES)) || {};
+  const contact = parseContact(body.contact);
+  const generic = json(200, { ok: true, message: GENERIC_CODE_SENT });
+  if (contact.error) {
+    return json(400, { ok: false, error: "Enter a mobile number or email" });
+  }
+
+  const test = await testHookOk(request, env);
+  if (!test) {
+    const ip = clientIp(request);
+    const ipLimit = await bumpRateLimit(env, AUTH_RL_IP_PREFIX + ip, AUTH_RL_IP_LIMIT, AUTH_RL_IP_TTL_SEC);
+    const contactLimit = await bumpRateLimit(
+      env,
+      AUTH_RL_CONTACT_PREFIX + contact.kind + ":" + contact.value,
+      AUTH_RL_CONTACT_LIMIT,
+      AUTH_RL_CONTACT_TTL_SEC
+    );
+    if (!ipLimit.ok || !contactLimit.ok) {
+      await recordDelivery(env, { channel: contact.kind, ok: false, error: "rate_limited", test });
+      return generic;
+    }
+  }
+
+  if (!isAllowlisted(env, contact)) {
+    await recordDelivery(env, { channel: contact.kind, ok: false, error: "not_allowlisted", test });
+    return generic;
+  }
+
+  const code = await randomDigits(6);
+  const loginId = randomToken();
+  const expiresAt = new Date(Date.now() + AUTH_CODE_TTL_SEC * 1000).toISOString();
+  const record = {
+    contact: contact.value,
+    kind: contact.kind,
+    codeHash: await sha256Hex(code + ":" + contact.value),
+    loginId,
+    attempts: 0,
+    expiresAt,
+    createdAt: new Date().toISOString(),
+  };
+  await env.KV.put(AUTH_OTP_PREFIX + contact.kind + ":" + contact.value, JSON.stringify(record), { expirationTtl: AUTH_CODE_TTL_SEC });
+  await env.KV.put(AUTH_LOGIN_PREFIX + loginId, JSON.stringify({ contact: contact.value, kind: contact.kind }), { expirationTtl: AUTH_CODE_TTL_SEC });
+
+  const link = boardUrl(env).replace(/\/+$/, "") + "/#login=" + loginId;
+  const text = [
+    `Your On a Roll sign-in code is ${code}. It expires in 10 minutes.`,
+    "",
+    "Or open this link on any browser:",
+    link,
+    "",
+    "If you didn't ask for this, you can ignore it.",
+  ].join("\n");
+
+  if (test) {
+    await recordDelivery(env, { channel: contact.kind, ok: true, error: "test_skipped", test: true });
+    return json(200, { ok: true, message: GENERIC_CODE_SENT, devCode: code, devLogin: loginId, test: true });
+  }
+
+  const delivery = contact.kind === "email"
+    ? await sendEmail(env, { to: contact.value, subject: "Your On a Roll sign-in code", text })
+    : await sendWhatsApp(env, text);
+  await recordDelivery(env, { channel: contact.kind, ok: !!delivery.sent, error: delivery.error || null, test: false });
+  return generic;
+}
+
+async function loadOtp(env, contact) {
+  return (await env.KV.get(AUTH_OTP_PREFIX + contact.kind + ":" + contact.value, "json")) || null;
+}
+
+async function clearOtp(env, record) {
+  if (!record) return;
+  await env.KV.delete(AUTH_OTP_PREFIX + record.kind + ":" + record.contact);
+  if (record.loginId) await env.KV.delete(AUTH_LOGIN_PREFIX + record.loginId);
+}
+
+async function issueSession(env, contact) {
+  const token = randomToken();
+  const expiresAt = new Date(Date.now() + AUTH_SESSION_TTL_SEC * 1000).toISOString();
+  const rec = {
+    contact: contact.value,
+    kind: contact.kind,
+    createdAt: new Date().toISOString(),
+    expiresAt,
+  };
+  const id = await sha256Hex(token);
+  await env.KV.put(AUTH_SESSION_PREFIX + id, JSON.stringify(rec), { expirationTtl: AUTH_SESSION_TTL_SEC });
+  return { token, expiresAt };
+}
+
+async function readSession(env, token) {
+  if (!token || String(token).length < 16) return null;
+  const id = await sha256Hex(token);
+  const rec = await env.KV.get(AUTH_SESSION_PREFIX + id, "json");
+  if (!rec || rec.revoked) return null;
+  if (rec.expiresAt && Date.parse(rec.expiresAt) <= Date.now()) {
+    await env.KV.delete(AUTH_SESSION_PREFIX + id);
+    return null;
+  }
+  return rec;
+}
+
+async function verifySignIn(request, env) {
+  const body = (await readJson(request, MAX_JSON_BYTES)) || {};
+  const loginId = String(body.login || body.loginId || "").trim();
+  const code = String(body.code || "").replace(/\s+/g, "");
+  let record = null;
+  let contact = null;
+
+  if (loginId) {
+    const pointer = await env.KV.get(AUTH_LOGIN_PREFIX + loginId, "json");
+    if (!pointer || !pointer.contact) {
+      return json(401, { ok: false, error: "That link isn't valid or has expired." });
+    }
+    contact = { kind: pointer.kind, value: pointer.contact };
+    record = await loadOtp(env, contact);
+    if (!record || record.loginId !== loginId) {
+      return json(401, { ok: false, error: "That link isn't valid or has expired." });
+    }
+  } else {
+    contact = parseContact(body.contact);
+    if (contact.error) return json(400, { ok: false, error: "Enter a mobile number or email" });
+    if (!/^\d{6}$/.test(code)) return json(400, { ok: false, error: "Enter the 6-digit code" });
+    record = await loadOtp(env, contact);
+    if (!record) return json(401, { ok: false, error: "That code isn't valid or has expired." });
+  }
+
+  if (record.expiresAt && Date.parse(record.expiresAt) <= Date.now()) {
+    await clearOtp(env, record);
+    return json(401, { ok: false, error: "That code isn't valid or has expired." });
+  }
+
+  const attempts = Number(record.attempts || 0);
+  if (attempts >= AUTH_MAX_ATTEMPTS) {
+    await clearOtp(env, record);
+    return json(401, { ok: false, error: "Too many attempts. Send a new code." });
+  }
+
+  if (!loginId) {
+    const got = await sha256Hex(code + ":" + record.contact);
+    // Hash both hex digests again so the comparison stays constant-time and length-stable.
+    const match = await keysMatch(got, record.codeHash);
+    if (!match) {
+      record.attempts = attempts + 1;
+      if (record.attempts >= AUTH_MAX_ATTEMPTS) {
+        await clearOtp(env, record);
+        return json(401, { ok: false, error: "Too many attempts. Send a new code." });
+      }
+      await env.KV.put(
+        AUTH_OTP_PREFIX + record.kind + ":" + record.contact,
+        JSON.stringify(record),
+        { expirationTtl: AUTH_CODE_TTL_SEC }
+      );
+      return json(401, { ok: false, error: "That code isn't valid or has expired." });
+    }
+  }
+
+  await clearOtp(env, record);
+  const session = await issueSession(env, contact);
+  return json(200, {
+    ok: true,
+    session: session.token,
+    expiresAt: session.expiresAt,
+  });
+}
+
 async function requireKey(request, env) {
   const expected = env.BOARD_KEY;
   if (!expected) {
@@ -852,13 +1142,18 @@ async function requireKey(request, env) {
     err.status = 500;
     throw err;
   }
-  const provided = request.headers.get("X-Board-Key") || "";
-  const ok = await keysMatch(provided, expected);
-  if (!ok) {
+  const provided = request.headers.get("X-Board-Key") || request.headers.get("X-Board-Session") || "";
+  if (!provided) {
     const err = new Error("unauthorized");
     err.status = 401;
     throw err;
   }
+  if (await keysMatch(provided, expected)) return { via: "board-key" };
+  const session = await readSession(env, provided);
+  if (session) return { via: "session", session };
+  const err = new Error("unauthorized");
+  err.status = 401;
+  throw err;
 }
 
 async function keysMatch(provided, expected) {
@@ -893,7 +1188,7 @@ function corsHeaders(origin) {
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "GET, HEAD, PUT, POST, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, X-Board-Key, X-Board-Base, If-Match",
+    "Access-Control-Allow-Headers": "Content-Type, X-Board-Key, X-Board-Session, X-Board-Base, If-Match, X-Auth-Test",
     "Access-Control-Expose-Headers": "Content-Type, Content-Length, ETag, X-Content-Type-Options",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
