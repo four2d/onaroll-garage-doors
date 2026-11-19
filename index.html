@@ -123,9 +123,14 @@
     .pair{display:grid; grid-template-columns:1fr 1fr; gap:.65rem}
     @media (max-width:520px){.pair{grid-template-columns:1fr}}
 
-    .photos{display:flex; flex-wrap:wrap; gap:.5rem}
+    .photos{
+      display:grid; grid-template-columns:repeat(auto-fill, minmax(76px, 1fr)); gap:.5rem;
+      max-height:240px; overflow-y:auto; padding:.2rem .15rem .4rem;
+      -webkit-overflow-scrolling:touch;
+    }
+    .photos-note{margin:.35rem 0 .55rem; font-size:.78rem; color:var(--muted); line-height:1.35}
     .photo-pick{
-      position:relative; width:76px; height:76px; border-radius:12px; overflow:hidden;
+      position:relative; width:100%; aspect-ratio:1; border-radius:12px; overflow:hidden;
       border:2px solid transparent; cursor:pointer; padding:0; background:#d7dee5;
       box-shadow:0 2px 8px rgba(11,28,40,.1);
     }
@@ -135,6 +140,11 @@
       display:grid; place-items:center; background:#e8eef3; color:var(--muted);
       font-size:11px; font-weight:750; letter-spacing:.04em; text-transform:uppercase;
       border:1.5px dashed #b0bdc9;
+    }
+    .photo-pick.library::after{
+      content:"Saved"; position:absolute; left:4px; bottom:4px; right:4px;
+      font-size:9px; font-weight:750; letter-spacing:.04em; text-transform:uppercase;
+      color:#fff; text-align:center; text-shadow:0 1px 3px rgba(0,0,0,.55);
     }
     .photo-pick input{display:none}
 
@@ -461,7 +471,7 @@
   <header>
     <div class="row">
       <div>
-        <h1>This week’s posts <span class="pill" id="verPill">v40</span></h1>
+        <h1>This week’s posts <span class="pill" id="verPill">v41</span></h1>
         <p>Tap <strong>Approve</strong> on each post — or Edit / Change if you want a tweak. Nothing goes live until Pete publishes.</p>
         <p class="head-nav"><a href="archive/">Past weeks</a></p>
       </div>
@@ -501,11 +511,14 @@
   const DEFAULT_PRICE_FROM = "From";
   const DEFAULT_PRICE_AMOUNT = "£1,250";
 
+  // Stock pack — drop more JPGs into photos/ and add rows here (or ask Pete to wire a drop from photo-pack/)
   const PHOTOS = [
-    { id: "bg-001", src: "bg-001.jpg", label: "Roller install" },
-    { id: "bg-002", src: "bg-002.jpg", label: "Security" },
-    { id: "bg-003", src: "bg-003.jpg", label: "Local fit" }
+    { id: "bg-001", src: "photos/stock-001.jpg", label: "Roller install" },
+    { id: "bg-002", src: "photos/stock-002.jpg", label: "Security" },
+    { id: "bg-003", src: "photos/stock-003.jpg", label: "Local fit" }
   ];
+
+  const LIBRARY_KEY = "oar-jon-photo-library-v1";
 
   const SUGGESTIONS = {
     "001": [
@@ -541,12 +554,50 @@
   };
 
   /* —— State —— */
-  const uploadCache = {}; // id -> dataURL
+  const uploadCache = {}; // id -> dataURL (session + library)
   const bakeCache = new Map(); // key -> {fb, ig}
   let selectedId = "001";
   let editorOpen = false;
   let saveTimer = null;
   let quiet = false; // suppress status while loading a day
+
+  function loadLibrary() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(LIBRARY_KEY) || "{}");
+      return raw && typeof raw === "object" ? raw : {};
+    } catch { return {}; }
+  }
+  function saveLibrary(lib) {
+    try { localStorage.setItem(LIBRARY_KEY, JSON.stringify(lib)); }
+    catch (err) {
+      console.warn("photo library full", err);
+      setStudioStatus("Photo library is full — older uploads may not stick after refresh.", "err");
+    }
+  }
+  function hydrateLibrary() {
+    const lib = loadLibrary();
+    Object.assign(uploadCache, lib);
+    return lib;
+  }
+  function libraryEntries() {
+    const lib = loadLibrary();
+    return Object.keys(lib)
+      .sort()
+      .reverse()
+      .map(id => ({ id, src: lib[id], label: "Saved upload" }));
+  }
+  function rememberUpload(id, dataUrl) {
+    uploadCache[id] = dataUrl;
+    const lib = loadLibrary();
+    lib[id] = dataUrl;
+    // Cap library size so localStorage doesn’t explode (~12 large photos)
+    const ids = Object.keys(lib).sort();
+    while (ids.length > 24) {
+      const drop = ids.shift();
+      delete lib[drop];
+    }
+    saveLibrary(lib);
+  }
 
   function loadState() {
     try { return JSON.parse(localStorage.getItem(KEY) || "{}"); }
@@ -618,6 +669,7 @@
 
   function photoSrc(post) {
     if (post.customPhoto && uploadCache[post.customPhoto]) return uploadCache[post.customPhoto];
+    if (post.photo && uploadCache[post.photo]) return uploadCache[post.photo];
     if (post.photo && String(post.photo).startsWith("data:")) return post.photo;
     const pack = PHOTOS.find(p => p.id === post.photo);
     return pack ? pack.src : PHOTOS[0].src;
@@ -992,7 +1044,8 @@
           <div class="more-body">
             <div class="edit-section">
               <h4 class="sec-label">Photo</h4>
-              <p class="sec-help">Stock shot or upload a real install photo.</p>
+              <p class="sec-help">Pick a stock shot or upload installs — uploads stay in this picker for reuse.</p>
+              <p class="photos-note"></p>
               <div class="field">
                 <div class="photos" id="photoRow"></div>
               </div>
@@ -1288,22 +1341,28 @@
     const post = state[selectedId];
     const row = document.getElementById("photoRow");
     if (!row) return;
-    let customBtn = "";
-    if (post.customPhoto && uploadCache[post.customPhoto]) {
-      customBtn = `<button type="button" class="photo-pick" data-photo="${post.customPhoto}" aria-pressed="${post.photo === post.customPhoto}" title="Uploaded">
-        <img src="${uploadCache[post.customPhoto]}" alt="Uploaded">
-      </button>`;
-    }
-    row.innerHTML = PHOTOS.map(p => `
+    hydrateLibrary();
+    const lib = libraryEntries();
+    const stockHtml = PHOTOS.map(p => `
       <button type="button" class="photo-pick" data-photo="${p.id}" aria-pressed="${post.photo === p.id}" title="${p.label}">
         <img src="${p.src}" alt="${p.label}">
-      </button>
-    `).join("") + customBtn + `
-      <label class="photo-pick upload" title="Upload photo">
+      </button>`).join("");
+    const libHtml = lib.map(p => `
+      <button type="button" class="photo-pick library" data-photo="${p.id}" aria-pressed="${post.photo === p.id}" title="${p.label}">
+        <img src="${p.src}" alt="${p.label}">
+      </button>`).join("");
+    row.innerHTML = stockHtml + libHtml + `
+      <label class="photo-pick upload" title="Upload photos to keep in this picker">
         Upload
-        <input type="file" id="photoUpload" accept="image/*" />
+        <input type="file" id="photoUpload" accept="image/*" multiple />
       </label>
     `;
+    const note = row.closest(".edit-section")?.querySelector(".photos-note");
+    if (note) {
+      note.textContent = lib.length
+        ? `${PHOTOS.length} stock · ${lib.length} saved upload${lib.length === 1 ? "" : "s"} — uploads stay here for reuse.`
+        : `${PHOTOS.length} stock photos — uploads are saved here so Jon can reuse them.`;
+    }
     row.querySelectorAll(".photo-pick[data-photo]").forEach(btn => {
       btn.addEventListener("click", () => {
         row.querySelectorAll(".photo-pick[data-photo]").forEach(b => b.setAttribute("aria-pressed", "false"));
@@ -1315,23 +1374,34 @@
     const upload = document.getElementById("photoUpload");
     if (!upload) return;
     upload.addEventListener("change", async (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
+      const files = [...(e.target.files || [])];
+      if (!files.length) return;
       try {
-        const dataUrl = await compressUpload(file);
-        const id = "up-" + Date.now();
-        uploadCache[id] = dataUrl;
+        let lastId = null;
         const st = ensureState();
-        st[selectedId].customPhoto = id;
-        st[selectedId].photo = id;
         st._uploads = st._uploads || {};
-        st._uploads[id] = dataUrl;
+        for (const file of files) {
+          const dataUrl = await compressUpload(file);
+          const id = "up-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+          rememberUpload(id, dataUrl);
+          st._uploads[id] = dataUrl;
+          lastId = id;
+        }
+        if (lastId) {
+          st[selectedId].customPhoto = lastId;
+          st[selectedId].photo = lastId;
+        }
         saveState(st);
         renderPhotoRow();
         wireInlineEditor();
         refreshCardCreative();
         commitSelected({ silent: true });
-        setStudioStatus("Custom photo saved to this day.", "ok");
+        setStudioStatus(
+          files.length > 1
+            ? `${files.length} photos saved to Jon’s library.`
+            : "Photo saved to Jon’s library for reuse.",
+          "ok"
+        );
       } catch (err) {
         console.error(err);
         setStudioStatus("Couldn’t read that photo. Try a JPG or PNG.", "err");
@@ -1769,6 +1839,7 @@
 
   /* —— Init —— */
   (async function init() {
+    hydrateLibrary();
     const state = ensureState();
     if (state._uploads) Object.assign(uploadCache, state._uploads);
 
