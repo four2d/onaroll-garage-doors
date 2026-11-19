@@ -203,7 +203,7 @@ rules:
 Every draft is run through a validator that rejects `£`, digits followed by
 “year” other than “5-year”, “since”, “review”, “star”, “guarantee” /
 “guaranteed”, “best”, “cheapest”, “No.1” and other superlatives or salesy
-claims, Title Case headlines, lines that end mid-phrase (for example “Just finished a job in.”), invented job locations or job details that are not in an inspiration note or photo label, and lines that are over length (`line1`/`line2`
+claims, Title Case headlines, lines that end mid-phrase (for example “Just finished a job in.”), invented job locations or job details that are not in an inspiration note or photo label, driveway/resin/paving wording, DIY advice about springs, cables or tension, and lines that are over length (`line1`/`line2`
 42, `sub` 110, `caption` 2200). Headlines are punctuated so they join
 cleanly into the caption. If the model fails twice, the Worker uses
 template copy.
