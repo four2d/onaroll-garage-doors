@@ -197,10 +197,10 @@
       background:linear-gradient(180deg,rgba(10,15,20,.3) 0%,rgba(10,15,20,0) 28%,rgba(10,15,20,.18) 55%,rgba(10,15,20,.82) 78%,rgba(10,15,20,.95) 100%);
     }
     .creative .cr-logo{
-      position:absolute; top:44px; left:44px; width:104px; height:104px; border-radius:50%;
+      position:absolute; top:40px; left:40px; width:120px; height:120px; border-radius:50%;
       background:#fff; box-shadow:0 8px 28px rgba(0,0,0,.28); display:grid; place-items:center; overflow:hidden;
     }
-    .creative .cr-logo img{width:94px; height:94px; object-fit:contain; display:block}
+    .creative .cr-logo img{width:110px; height:110px; object-fit:contain; display:block}
     .creative .cr-price{
       position:absolute; top:58px; right:44px;
       color:#0a0f14; background:#fff; padding:14px 20px; border-radius:999px;
@@ -461,7 +461,7 @@
   <header>
     <div class="row">
       <div>
-        <h1>This week’s posts <span class="pill" id="verPill">v39</span></h1>
+        <h1>This week’s posts <span class="pill" id="verPill">v40</span></h1>
         <p>Tap <strong>Approve</strong> on each post — or Edit / Change if you want a tweak. Nothing goes live until Pete publishes.</p>
         <p class="head-nav"><a href="archive/">Past weeks</a></p>
       </div>
@@ -732,7 +732,7 @@
     ctx.fillRect(0, 0, W, H);
 
     // logo circle
-    const lx = 44, ly = 44, lr = 52;
+    const lx = 40, ly = 40, lr = 60;
     ctx.save();
     ctx.beginPath();
     ctx.arc(lx + lr, ly + lr, lr, 0, Math.PI * 2);
@@ -743,7 +743,7 @@
     ctx.fill();
     ctx.clip();
     ctx.shadowColor = "transparent";
-    ctx.drawImage(logo, lx + 5, ly + 5, 94, 94);
+    ctx.drawImage(logo, lx + 5, ly + 5, 110, 110);
     ctx.restore();
 
     // hard-reset shadow — logo fill must not ghost into the price chip
