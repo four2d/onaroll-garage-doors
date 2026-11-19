@@ -467,6 +467,75 @@
       height:1080px; transform:scale(calc(148 / 1080));
     }
 
+
+    /* Job-led composer — primary way to start a post */
+    .job-composer{
+      background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+      box-shadow:var(--shadow); padding:1.15rem 1.15rem 1.25rem; margin:0 0 1.35rem;
+    }
+    .job-composer h2{margin:0; font-size:1.15rem; font-weight:750; letter-spacing:-.015em}
+    .job-composer .lead{margin:.35rem 0 0; font-size:.92rem; color:var(--muted); max-width:36rem}
+    .job-composer .job-actions{margin:.95rem 0 0; display:flex; flex-wrap:wrap; gap:.5rem}
+    .btn-job{
+      appearance:none; border:0; background:var(--ink); color:#fff; font-weight:750;
+      font-size:1rem; padding:.9rem 1.25rem; border-radius:11px; cursor:pointer; min-height:48px;
+      box-shadow:0 3px 12px rgba(11,28,40,.16);
+    }
+    .btn-job:hover{filter:brightness(1.06)}
+    .btn-job-cancel{
+      appearance:none; border:1.5px solid var(--line); background:#fff; color:var(--ink);
+      font-weight:700; font-size:.92rem; padding:.8rem 1rem; border-radius:11px; cursor:pointer; min-height:48px;
+    }
+    .job-form{margin-top:1.05rem; padding-top:1rem; border-top:1px solid var(--line)}
+    .job-form[hidden], .job-intro[hidden]{display:none !important}
+    .job-photos{display:grid; grid-template-columns:1fr 1fr; gap:.65rem; margin:0 0 1rem}
+    @media (max-width:520px){.job-photos{grid-template-columns:1fr}}
+    .job-photo-slot{
+      border:1.5px dashed #b0bdc9; border-radius:12px; background:#f5f8fb;
+      min-height:148px; display:grid; place-items:center; text-align:center;
+      cursor:pointer; overflow:hidden; position:relative; padding:.75rem;
+    }
+    .job-photo-slot.has-img{border-style:solid; border-color:var(--blue-dark); background:#0a0f14}
+    .job-photo-slot img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
+    .job-photo-slot .slot-lab{
+      position:relative; z-index:1; font-size:.8rem; font-weight:750; color:var(--muted); line-height:1.3;
+    }
+    .job-photo-slot.has-img .slot-lab{color:#fff; text-shadow:0 1px 4px rgba(0,0,0,.65)}
+    .job-photo-slot input{display:none}
+    .field select{
+      width:100%; font-size:1rem; color:var(--ink);
+      border:1.5px solid #c5d0da; border-radius:11px; padding:.75rem .85rem;
+      background:#fff;
+    }
+    .field select:focus{border-color:var(--blue-dark); outline:none; box-shadow:var(--focus)}
+    .day-pick{display:flex; flex-wrap:wrap; gap:.4rem}
+    .day-pick label{
+      border:1.5px solid var(--line); background:#fff; border-radius:999px;
+      padding:.45rem .9rem; font-size:.88rem; font-weight:750; cursor:pointer;
+    }
+    .day-pick label:has(input:checked){background:var(--ink); color:#fff; border-color:var(--ink)}
+    .day-pick input{position:absolute; opacity:0; pointer-events:none}
+
+    .toggle-row{display:flex; align-items:flex-start; gap:.65rem; margin:0 0 .75rem}
+    .toggle-row input[type="checkbox"]{
+      width:20px; height:20px; margin:.15rem 0 0; accent-color:var(--blue-dark); flex:0 0 auto;
+    }
+    .toggle-row .toggle-copy strong{display:block; font-size:.95rem; font-weight:750}
+    .toggle-row .toggle-copy .hint{margin:.2rem 0 0; min-height:0}
+    .price-fields[hidden]{display:none !important}
+
+    .creative .cr-photo.ba{
+      display:grid; grid-template-columns:1fr 1fr; background-image:none;
+    }
+    .creative .cr-photo.ba .ba-shot{
+      position:relative; background-position:center; background-size:cover; background-repeat:no-repeat;
+    }
+    .creative .cr-photo.ba .ba-lab{
+      position:absolute; top:176px; left:14px;
+      background:rgba(10,15,20,.72); color:#fff; font-size:14px; font-weight:700;
+      letter-spacing:.08em; text-transform:uppercase; padding:6px 10px; border-radius:999px;
+    }
+
     .sr-only{
       position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
       clip:rect(0,0,0,0); white-space:nowrap; border:0;
@@ -478,7 +547,7 @@
     <div class="row">
       <div>
         <h1>This week’s posts <span class="pill" id="verPill">v44</span></h1>
-        <p>Tap <strong>Approve</strong> on each post — or Edit / Change if you want a tweak. Nothing goes live until Pete publishes.</p>
+        <p>Start with a photo from a real job, then Approve when it looks right — or Edit / Change a weekday slot. Nothing goes live until Pete publishes.</p>
         <p class="head-nav"><a href="archive/">Past weeks</a></p>
       </div>
     </div>
@@ -487,9 +556,66 @@
   <div class="wrap">
     <div class="week-bar" id="weekBar" aria-label="Week progress"></div>
 
+    <section class="job-composer" id="jobComposer">
+      <div class="job-intro" id="jobIntro">
+        <h2>New post from a job</h2>
+        <p class="lead">Add a photo from an install or repair, the town, and the door type. We’ll draft honest copy — no made-up quotes or prices.</p>
+        <div class="job-actions">
+          <button type="button" class="btn-job" id="btnNewJob">Add a job</button>
+        </div>
+      </div>
+      <form class="job-form" id="jobForm" hidden>
+        <h2>New post from a job</h2>
+        <p class="lead">Install photos are the main content. Add a shot of the finished job, or a before-and-after pair.</p>
+        <div class="job-photos">
+          <label class="job-photo-slot" id="jobAfterSlot">
+            <img id="jobAfterPreview" alt="" hidden>
+            <span class="slot-lab" id="jobAfterLab">Photo / After<br>Tap to add</span>
+            <input type="file" id="jobAfter" accept="image/*" />
+          </label>
+          <label class="job-photo-slot" id="jobBeforeSlot">
+            <img id="jobBeforePreview" alt="" hidden>
+            <span class="slot-lab" id="jobBeforeLab">Before (optional)<br>Tap to add</span>
+            <input type="file" id="jobBefore" accept="image/*" />
+          </label>
+        </div>
+        <div class="pair">
+          <div class="field">
+            <label for="jobTown">Town</label>
+            <input id="jobTown" type="text" maxlength="40" autocomplete="off" placeholder="e.g. Poole" required />
+          </div>
+          <div class="field">
+            <label for="jobDoor">Door type</label>
+            <select id="jobDoor" required>
+              <option value="" disabled selected>Choose a type</option>
+              <option value="roller">Roller</option>
+              <option value="sectional">Sectional</option>
+              <option value="up-and-over">Up-and-over</option>
+              <option value="side-hinged">Side-hinged</option>
+              <option value="repair">Repair</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="jobNote">What was replaced or fixed (optional)</label>
+          <input id="jobNote" type="text" maxlength="140" autocomplete="off" placeholder="e.g. Old timber door swapped for a white roller" />
+        </div>
+        <div class="field">
+          <label>Which day</label>
+          <div class="day-pick" id="jobDayPick"></div>
+        </div>
+        <div class="job-actions">
+          <button type="submit" class="btn-job" id="btnJobSubmit">Make this post</button>
+          <button type="button" class="btn-job-cancel" id="btnJobCancel">Cancel</button>
+        </div>
+        <p class="status-line" id="jobStatus" role="status"></p>
+      </form>
+    </section>
+
     <div class="board-head" id="boardHead">
       <h2>Your three posts</h2>
-      <p>Monday, Wednesday, Friday — how each will look on Facebook (Instagram uses the same creative, square-cropped).</p>
+      <p>Monday, Wednesday, Friday are still here if you want to tweak this week’s set. Instagram uses the same creative, square-cropped.</p>
     </div>
     <div class="stack" id="stack"></div>
   </div>
@@ -508,14 +634,15 @@
   </div>
 
   <script>
-  const KEY = "oar-jon-board-v26";
+  const KEY = "oar-jon-board-v27";
+  const PREV_KEYS = ["oar-jon-board-v26"];
   const PAGE = "On A Roll Garage Doors";
   const LOGO = "logo.jpg";
   const PHONE = "01202 553603";
   const WHATSAPP = "07534 066813";
   const DEFAULT_CTA = "Free survey · 01202 553603";
   const DEFAULT_PRICE_FROM = "From";
-  const DEFAULT_PRICE_AMOUNT = "£1,250";
+  const LIBRARY_SOFT_CAP = 40;
 
   // Stock pack — loaded from photos/manifest.json (FB exports + installs). Keep text overlays as-is.
   let PHOTOS = [
@@ -604,12 +731,12 @@
       { line1: "A better door.", line2: "A fair price." },
       { line1: "Free survey.", line2: "Straight quote." },
       { line1: "Poole-based.", line2: "Dorset-wide." },
-      { line1: "Family-run", line2: "since 2014." },
+      { line1: "Family-run.", line2: "Locally fitted." },
       { line1: "No hard sell.", line2: "Just good doors." },
       { line1: "Book the survey.", line2: "Get the price." },
       { line1: "Local team.", line2: "Clear costs." },
       { line1: "Quality fit.", line2: "Sensible money." },
-      { line1: "From £1,250.", line2: "Fitted locally." },
+      { line1: "Fitted locally.", line2: "Quoted honestly." },
       { line1: "Ask the locals.", line2: "Then call us." },
       { line1: "Survey this week.", line2: "Fit soon after." },
       { line1: "Honest quote.", line2: "Tidy install." },
@@ -624,9 +751,9 @@
         "Local Poole fitters. Straight quote. Free survey.",
         "Poole, Bournemouth, Christchurch & Dorset. Free survey.",
         "Book a free survey this week. Typical fit about half a day.",
-        "Family-run in Poole since 2014. Free survey, no hard sell.",
+        "Family-run, local garage door fitters in Poole. Free survey, no hard sell.",
         "Made-to-measure rollers. Clear pricing. Local team.",
-        "From £1,250. Free survey → 01202 553603."
+        "Free survey → 01202 553603. Straight quote, no hard sell."
       ][i % 6],
       photo: "stock-003"
     }))
@@ -658,11 +785,18 @@
       return raw && typeof raw === "object" ? raw : {};
     } catch { return {}; }
   }
-  function saveLibrary(lib) {
-    try { localStorage.setItem(LIBRARY_KEY, JSON.stringify(lib)); }
-    catch (err) {
+  function trySaveLibrary(lib) {
+    try {
+      localStorage.setItem(LIBRARY_KEY, JSON.stringify(lib));
+      return true;
+    } catch (err) {
       console.warn("photo library full", err);
-      setStudioStatus("Gallery is full — older uploads may not stick after refresh.", "err");
+      return false;
+    }
+  }
+  function saveLibrary(lib) {
+    if (!trySaveLibrary(lib)) {
+      setStudioStatus("Gallery is full — this upload may not stick after refresh.", "err");
     }
   }
   function hydrateLibrary() {
@@ -689,19 +823,89 @@
   function rememberUpload(id, dataUrl) {
     uploadCache[id] = dataUrl;
     const lib = loadLibrary();
-    lib[id] = dataUrl;
-    // Cap gallery uploads so localStorage doesn’t explode
+    const existed = Object.prototype.hasOwnProperty.call(lib, id);
     const ids = Object.keys(lib).sort();
-    while (ids.length > 36) {
+    const wouldDrop = !existed && ids.length >= LIBRARY_SOFT_CAP;
+    if (wouldDrop) {
+      const ok = confirm("The gallery is full. Saving this photo will remove the oldest saved upload. Continue?");
+      if (!ok) return false;
       const drop = ids.shift();
       delete lib[drop];
     }
-    saveLibrary(lib);
+    lib[id] = dataUrl;
+    if (trySaveLibrary(lib)) return true;
+    const evict = confirm("Browser storage is full. Remove the oldest saved upload so this new photo can be kept for reuse?");
+    if (!evict) {
+      setStudioStatus("Photo is available for this session, but wasn’t saved for reuse.", "err");
+      return true;
+    }
+    const remaining = Object.keys(lib).filter(k => k !== id).sort();
+    while (remaining.length) {
+      const drop = remaining.shift();
+      delete lib[drop];
+      if (trySaveLibrary(lib)) return true;
+    }
+    delete lib[id];
+    setStudioStatus("Couldn’t save that photo to the library — it’s too large for the browser store.", "err");
+    return false;
+  }
+
+  function isDefaultPriceAmount(amount) {
+    const n = String(amount || "").replace(/\s+/g, "").toLowerCase();
+    return !n || n === "£1,250" || n === "£1250" || n === "1250";
+  }
+
+  function migrateState(state) {
+    if (!state || typeof state !== "object") return {};
+    for (const slot of SLOTS) {
+      const post = state[slot.id];
+      if (!post || !post.line1) continue;
+      const keptCustom = !isDefaultPriceAmount(post.priceAmount);
+      post.showPrice = false;
+      if (!keptCustom) post.priceAmount = "";
+      if (!post.priceFrom) post.priceFrom = DEFAULT_PRICE_FROM;
+      if (post.line2 && /since\s*2014/i.test(post.line2)) {
+        post.line1 = /^family-run\.?$/i.test(String(post.line1 || "").trim()) ? "Family-run." : post.line1;
+        post.line2 = "Locally fitted.";
+      }
+      if (/from\s*£?\s*1[,.]?250/i.test(`${post.line1 || ""} ${post.line2 || ""}`)) {
+        post.line1 = "Fitted locally.";
+        post.line2 = "Quoted honestly.";
+      }
+      if (post.sub && /2014/i.test(post.sub)) {
+        post.sub = String(post.sub)
+          .replace(/Family-run in Poole since 2014/gi, "Family-run, local garage door fitters in Poole")
+          .replace(/in Poole since 2014/gi, "local garage door fitters in Poole")
+          .replace(/since 2014/gi, "")
+          .replace(/\s+/g, " ")
+          .replace(/\s+\./g, ".")
+          .trim();
+      }
+      if (post.sub && /from\s*£?\s*1[,.]?250/i.test(post.sub)) {
+        post.sub = "Free survey, straight quote, no hard sell.";
+      }
+      const cap = String(post.caption || "");
+      if (!cap || /2014|£1,?250|From £/i.test(cap)) {
+        post.caption = buildCaption(post, slot.id);
+      }
+    }
+    return state;
   }
 
   function loadState() {
-    try { return JSON.parse(localStorage.getItem(KEY) || "{}"); }
-    catch { return {}; }
+    try {
+      const current = localStorage.getItem(KEY);
+      if (current) return JSON.parse(current || "{}") || {};
+      for (const oldKey of PREV_KEYS) {
+        const raw = localStorage.getItem(oldKey);
+        if (!raw) continue;
+        const migrated = migrateState(JSON.parse(raw) || {});
+        try { localStorage.setItem(KEY, JSON.stringify(migrated)); }
+        catch (err) { console.warn("could not save migrated state", err); }
+        return migrated;
+      }
+      return {};
+    } catch { return {}; }
   }
   function saveState(state) {
     try { localStorage.setItem(KEY, JSON.stringify(state)); }
@@ -716,27 +920,33 @@
     return String(post?.priceFrom || DEFAULT_PRICE_FROM).trim() || DEFAULT_PRICE_FROM;
   }
   function priceAmountOf(post) {
-    return String(post?.priceAmount || DEFAULT_PRICE_AMOUNT).trim() || DEFAULT_PRICE_AMOUNT;
+    return String(post?.priceAmount || "").trim();
+  }
+  function showPriceOf(post) {
+    return !!post?.showPrice && !!priceAmountOf(post);
   }
   function pricePhrase(post) {
+    if (!showPriceOf(post)) return "";
     return `${priceFromOf(post)} ${priceAmountOf(post)}`.replace(/\s+/g, " ").trim();
   }
 
   function defaultPost(slotId) {
     const s = SUGGESTIONS[slotId][0];
-    return {
+    const post = {
       photo: s.photo,
       line1: s.line1,
       line2: s.line2,
       sub: s.sub,
       cta: DEFAULT_CTA,
+      showPrice: false,
       priceFrom: DEFAULT_PRICE_FROM,
-      priceAmount: DEFAULT_PRICE_AMOUNT,
-      caption: buildCaption({ ...s, priceFrom: DEFAULT_PRICE_FROM, priceAmount: DEFAULT_PRICE_AMOUNT }, slotId),
+      priceAmount: "",
       status: "awaiting",
       variant: 0,
       customPhoto: null
     };
+    post.caption = buildCaption(post, slotId);
+    return post;
   }
 
   function ensureState() {
@@ -746,38 +956,91 @@
       if (!state[slot.id].status) state[slot.id].status = "awaiting";
       if (typeof state[slot.id].variant !== "number") state[slot.id].variant = 0;
       if (!state[slot.id].priceFrom) state[slot.id].priceFrom = DEFAULT_PRICE_FROM;
-      if (!state[slot.id].priceAmount) state[slot.id].priceAmount = DEFAULT_PRICE_AMOUNT;
-      if (!state[slot.id].caption) state[slot.id].caption = buildCaption(state[slot.id], slot.id);
+      if (typeof state[slot.id].showPrice !== "boolean") {
+        state[slot.id].showPrice = false;
+        if (isDefaultPriceAmount(state[slot.id].priceAmount)) state[slot.id].priceAmount = "";
+      }
       if (!state[slot.id].cta) state[slot.id].cta = DEFAULT_CTA;
+      if (!state[slot.id].caption) state[slot.id].caption = buildCaption(state[slot.id], slot.id);
     }
     return state;
   }
 
+  const BRAND_SIGN_OFF = "On A Roll Garage Doors — Family-run, local garage door fitters in Poole.";
+  // Founding year needs Jon's confirmation before it is used in copy. Do not add "since YYYY".
+
   function buildCaption(post, slotId) {
-    const hook = `${post.line1 || ""} ${post.line2 || ""}`.replace(/\s+/g, " ").trim();
-    const sub = String(post.sub || "").replace(/\s+/g, " ").trim();
-    // Lead with the headline; fold in supporting line when it adds something new
-    let body = hook;
-    if (sub && sub.toLowerCase() !== hook.toLowerCase()) {
-      body = hook ? `${hook} ${sub}` : sub;
+    let body = "";
+    if (post.source === "job") {
+      body = jobCaptionBody(post);
+    } else {
+      const hook = `${post.line1 || ""} ${post.line2 || ""}`.replace(/\s+/g, " ").trim();
+      const sub = String(post.sub || "").replace(/\s+/g, " ").trim();
+      // Lead with the headline; fold in supporting line when it adds something new
+      body = hook;
+      if (sub && sub.toLowerCase() !== hook.toLowerCase()) {
+        body = hook ? `${hook} ${sub}` : sub;
+      }
     }
     if (!body) body = "Made-to-measure garage doors, fitted locally.";
-    // Ensure the opening ends cleanly before the price clause
     const lead = /[.!?]$/.test(body) ? body : `${body}.`;
-    return `${lead} ${pricePhrase(post)}.\n\nFree survey → ${PHONE} · WhatsApp ${WHATSAPP}\nonarollgaragedoors.co.uk\n\nOn A Roll Garage Doors — family-run in Poole since 2014.\n\n${HASHTAGS[slotId] || HASHTAGS["001"]}`;
+    const priceBit = showPriceOf(post) ? ` ${pricePhrase(post)}.` : "";
+    const tags = post.source === "job"
+      ? jobHashtags(post.town, post.doorType)
+      : (HASHTAGS[slotId] || HASHTAGS["001"]);
+    return `${lead}${priceBit}\n\nFree survey → ${PHONE} · WhatsApp ${WHATSAPP}\nonarollgaragedoors.co.uk\n\n${BRAND_SIGN_OFF}\n\n${tags}`;
   }
 
   function resolvePhotoId(id) {
     return PHOTO_ALIASES[id] || id;
   }
 
+  function resolveSrc(id) {
+    if (!id) return "";
+    if (uploadCache[id]) return uploadCache[id];
+    if (String(id).startsWith("data:")) return id;
+    const pid = resolvePhotoId(id);
+    if (pid && uploadCache[pid]) return uploadCache[pid];
+    const pack = PHOTOS.find(p => p.id === pid) || PHOTOS.find(p => p.id === id);
+    return pack ? pack.src : "";
+  }
+
   function photoSrc(post) {
     if (post.customPhoto && uploadCache[post.customPhoto]) return uploadCache[post.customPhoto];
-    const pid = resolvePhotoId(post.photo);
-    if (pid && uploadCache[pid]) return uploadCache[pid];
+    const after = resolveSrc(post.afterPhoto);
+    if (after) return after;
+    const fromPhoto = resolveSrc(post.photo);
+    if (fromPhoto) return fromPhoto;
     if (post.photo && String(post.photo).startsWith("data:")) return post.photo;
-    const pack = PHOTOS.find(p => p.id === pid) || PHOTOS.find(p => p.id === post.photo);
-    return pack ? pack.src : PHOTOS[0].src;
+    return PHOTOS[0]?.src || "";
+  }
+
+  function beforeSrc(post) {
+    return resolveSrc(post.beforePhoto);
+  }
+
+  function afterSrc(post) {
+    return resolveSrc(post.afterPhoto) || photoSrc(post);
+  }
+
+  function hasBeforeAfter(post) {
+    const a = afterSrc(post);
+    const b = beforeSrc(post);
+    return !!(a && b && a !== b);
+  }
+
+  function safeBgUrl(src) {
+    return String(src || "").replace(/'/g, "%27");
+  }
+
+  function photoMarkup(post) {
+    if (hasBeforeAfter(post)) {
+      return `<div class="cr-photo ba">
+      <div class="ba-shot" style="background-image:url('${safeBgUrl(beforeSrc(post))}')"><span class="ba-lab">Before</span></div>
+      <div class="ba-shot" style="background-image:url('${safeBgUrl(afterSrc(post))}')"><span class="ba-lab">After</span></div>
+    </div>`;
+    }
+    return `<div class="cr-photo" style="background-image:url('${safeBgUrl(photoSrc(post))}')"></div>`;
   }
 
   async function loadPhotoManifest() {
@@ -803,13 +1066,13 @@
   }
 
   function creativeHTML(post, format) {
-    const src = photoSrc(post);
     const ig = format === "ig";
+    const price = pricePhrase(post);
     return `<div class="creative${ig ? " ig" : ""}" data-format="${format}">
-      <div class="cr-photo" style="background-image:url('${src.replace(/'/g, "%27")}')"></div>
+      ${photoMarkup(post)}
       <div class="cr-grad"></div>
       <div class="cr-logo"><img src="${LOGO}" alt=""></div>
-      <div class="cr-price">${escapeHTML(pricePhrase(post))}</div>
+      ${price ? `<div class="cr-price">${escapeHTML(price)}</div>` : ""}
       <div class="cr-copy">
         <div class="cr-rule"></div>
         <div class="cr-h1"><span class="l">${escapeHTML(post.line1)}</span><span class="l">${escapeHTML(post.line2)}</span></div>
@@ -866,8 +1129,9 @@
     const H = format === "ig" ? 1080 : 1350;
     const cacheKey = JSON.stringify({
       f: format, p: post.photo, c: post.customPhoto || "",
+      b: post.beforePhoto || "", a: post.afterPhoto || "",
       l1: post.line1, l2: post.line2, s: post.sub, cta: post.cta,
-      pf: priceFromOf(post), pa: priceAmountOf(post)
+      sp: !!showPriceOf(post), pf: priceFromOf(post), pa: priceAmountOf(post)
     });
     if (bakeCache.has(cacheKey)) return bakeCache.get(cacheKey);
 
@@ -875,15 +1139,44 @@
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext("2d", { alpha: false });
 
-    const bgSrc = photoSrc(post);
-    const [bg, logo] = await Promise.all([loadImage(bgSrc), loadImage(LOGO)]);
-
-    // cover draw
-    const scale = Math.max(W / bg.width, H / bg.height);
-    const bw = bg.width * scale, bh = bg.height * scale;
+    const logo = await loadImage(LOGO);
     ctx.fillStyle = "#0a0f14";
     ctx.fillRect(0, 0, W, H);
-    ctx.drawImage(bg, (W - bw) / 2, (H - bh) / 2, bw, bh);
+
+    function coverDraw(img, x, y, w, h) {
+      const scale = Math.max(w / img.width, h / img.height);
+      const bw = img.width * scale, bh = img.height * scale;
+      ctx.drawImage(img, x + (w - bw) / 2, y + (h - bh) / 2, bw, bh);
+    }
+
+    if (hasBeforeAfter(post)) {
+      const [beforeImg, afterImg] = await Promise.all([
+        loadImage(beforeSrc(post)),
+        loadImage(afterSrc(post))
+      ]);
+      const half = Math.round(W / 2);
+      coverDraw(beforeImg, 0, 0, half, H);
+      coverDraw(afterImg, half, 0, W - half, H);
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.fillRect(half - 2, 0, 4, H);
+      ctx.font = "700 18px Helvetica, Arial, sans-serif";
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "left";
+      function label(text, lx) {
+        const padX = 12, ph = 32, ly = 178; // sit below the logo circle
+        const tw = ctx.measureText(text).width;
+        ctx.fillStyle = "rgba(10,15,20,0.72)";
+        roundRect(ctx, lx, ly, tw + padX * 2, ph, 999);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.fillText(text, lx + padX, ly + ph / 2);
+      }
+      label("BEFORE", 24);
+      label("AFTER", half + 24);
+    } else {
+      const bg = await loadImage(photoSrc(post));
+      coverDraw(bg, 0, 0, W, H);
+    }
 
     const g = ctx.createLinearGradient(0, 0, 0, H);
     if (format === "ig") {
@@ -923,20 +1216,22 @@
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
 
-    // price — single white pill
-    ctx.font = "700 17px Helvetica, Arial, sans-serif";
-    const tPrice = pricePhrase(post).toUpperCase();
-    const padX = 20, ph = 44, py = 58;
-    const priceW = ctx.measureText(tPrice).width;
-    const pricePill = priceW + padX * 2;
-    const px = W - 44 - pricePill;
-    ctx.textBaseline = "middle";
-    ctx.textAlign = "left";
-    ctx.fillStyle = "#fff";
-    roundRect(ctx, px, py, pricePill, ph, 999);
-    ctx.fill();
-    ctx.fillStyle = "#0a0f14";
-    ctx.fillText(tPrice, px + padX, py + ph / 2);
+    // price — single white pill, only when Jon has chosen to show a confirmed amount
+    if (showPriceOf(post)) {
+      ctx.font = "700 17px Helvetica, Arial, sans-serif";
+      const tPrice = pricePhrase(post).toUpperCase();
+      const padX = 20, ph = 44, py = 58;
+      const priceW = ctx.measureText(tPrice).width;
+      const pricePill = priceW + padX * 2;
+      const px = W - 44 - pricePill;
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#fff";
+      roundRect(ctx, px, py, pricePill, ph, 999);
+      ctx.fill();
+      ctx.fillStyle = "#0a0f14";
+      ctx.fillText(tPrice, px + padX, py + ph / 2);
+    }
 
     // copy block
     const left = 52;
@@ -1041,11 +1336,14 @@
       line2: document.getElementById("line2").value.trim(),
       sub: document.getElementById("sub").value.trim(),
       cta: document.getElementById("cta").value.trim() || DEFAULT_CTA,
-      priceFrom: document.getElementById("priceFrom").value.trim() || DEFAULT_PRICE_FROM,
-      priceAmount: document.getElementById("priceAmount").value.trim() || DEFAULT_PRICE_AMOUNT,
+      showPrice: !!document.getElementById("showPrice")?.checked,
+      priceFrom: document.getElementById("priceFrom")?.value.trim() || DEFAULT_PRICE_FROM,
+      priceAmount: document.getElementById("priceAmount")?.value.trim() || "",
       caption: document.getElementById("caption").value,
       photo,
-      customPhoto: isUpload ? photo : null
+      customPhoto: isUpload ? photo : null,
+      afterPhoto: isUpload ? photo : null,
+      beforePhoto: isUpload ? (existing.beforePhoto || null) : null
     };
   }
 
@@ -1055,8 +1353,11 @@
     document.getElementById("line2").value = post.line2 || "";
     document.getElementById("sub").value = post.sub || "";
     document.getElementById("cta").value = post.cta || DEFAULT_CTA;
-    document.getElementById("priceFrom").value = priceFromOf(post);
+    const show = document.getElementById("showPrice");
+    if (show) show.checked = !!post.showPrice;
+    document.getElementById("priceFrom").value = post.priceFrom || DEFAULT_PRICE_FROM;
     document.getElementById("priceAmount").value = priceAmountOf(post);
+    syncPriceFields();
     document.getElementById("caption").value = post.caption || "";
     document.querySelectorAll(".photo-pick[data-photo]").forEach(btn => {
       btn.setAttribute("aria-pressed", btn.dataset.photo === post.photo ? "true" : "false");
@@ -1108,6 +1409,19 @@
     el.className = "status-line" + (kind ? " " + kind : "");
   }
 
+  function syncPriceFields() {
+    const box = document.getElementById("priceFields");
+    const show = document.getElementById("showPrice");
+    if (box) box.hidden = !show?.checked;
+  }
+
+  function maybeRebuildCaptionFromPrice() {
+    const cap = document.getElementById("caption");
+    if (!cap) return;
+    const post = currentPostFromForm();
+    cap.value = buildCaption(post, selectedId);
+  }
+
   function inlineEditHTML(slot) {
     return `
       <div class="inline-edit" data-inline-edit>
@@ -1121,15 +1435,23 @@
 
         <div class="edit-section">
           <h4 class="sec-label">On the image</h4>
-          <p class="sec-help">Price chips, then the headline on the photo.</p>
-          <div class="pair">
+          <p class="sec-help">Headline on the photo. Price stays off unless you choose to show one.</p>
+          <div class="toggle-row">
+            <input id="showPrice" type="checkbox" />
+            <div class="toggle-copy">
+              <strong>Show price</strong>
+              <p class="hint">Off by default. Only use a price Jon has confirmed.</p>
+            </div>
+          </div>
+          <div class="pair price-fields" id="priceFields" hidden>
             <div class="field">
               <label for="priceFrom">Price label</label>
               <input id="priceFrom" type="text" maxlength="16" autocomplete="off" placeholder="From" />
             </div>
             <div class="field">
               <label for="priceAmount">Price</label>
-              <input id="priceAmount" type="text" maxlength="18" autocomplete="off" placeholder="£1,250" />
+              <input id="priceAmount" type="text" maxlength="18" autocomplete="off" placeholder="Type the confirmed amount" />
+              <p class="hint">Only use a price Jon has confirmed</p>
             </div>
           </div>
           <div class="pair">
@@ -1371,10 +1693,21 @@
       if (!el || el.dataset.wired === "1") return;
       el.dataset.wired = "1";
       el.addEventListener("input", () => {
+        if (fid === "priceFrom" || fid === "priceAmount") maybeRebuildCaptionFromPrice();
         scheduleCommit();
         refreshCardCreative();
       });
     });
+    const showPrice = document.getElementById("showPrice");
+    if (showPrice && showPrice.dataset.wired !== "1") {
+      showPrice.dataset.wired = "1";
+      showPrice.addEventListener("change", () => {
+        syncPriceFields();
+        maybeRebuildCaptionFromPrice();
+        scheduleCommit();
+        refreshCardCreative();
+      });
+    }
     const rebuild = document.getElementById("btnCaption");
     if (rebuild && rebuild.dataset.wired !== "1") {
       rebuild.dataset.wired = "1";
@@ -1566,7 +1899,7 @@
           const c = document.createElement("canvas");
           c.width = w; c.height = h;
           c.getContext("2d").drawImage(img, 0, 0, w, h);
-          resolve(c.toDataURL("image/jpeg", 0.9));
+          resolve(c.toDataURL("image/jpeg", 0.8));
         };
         img.onerror = () => reject(new Error("decode failed"));
         img.src = reader.result;
@@ -1707,36 +2040,64 @@
             openEditor(id);
           }
           if (action === "change") {
-            const list = SUGGESTIONS[id] || SUGGESTIONS["001"];
-            const next = ((state[id].variant || 0) + 1) % list.length;
-            const s = list[next];
-            // Rotate through the full gallery roll (Jon’s uploads + stock)
-            const roll = galleryRoll();
-            const dayOffset = Math.max(0, SLOTS.findIndex(x => x.id === id));
-            const photoCount = Math.max(roll.length, 1);
-            const photoIdx = (next * 5 + dayOffset * 11) % photoCount;
-            const picked = roll[photoIdx];
-            const photoId = picked?.id || s.photo || "stock-001";
-            const nextPost = {
-              ...state[id],
-              variant: next,
-              photo: photoId,
-              customPhoto: String(photoId).startsWith("up-") ? photoId : null,
-              line1: s.line1,
-              line2: s.line2,
-              sub: s.sub,
-              cta: DEFAULT_CTA,
-              status: "awaiting"
-            };
-            nextPost.caption = buildCaption(nextPost, id);
+            const current = state[id];
+            let nextPost;
+            let ideaLabel;
+            if (current.source === "job" && current.town && current.doorType) {
+              const pack = jobHeadlinePack(current.doorType, current.town, current.jobNote);
+              const next = ((current.variant || 0) + 1) % pack.length;
+              const s = pack[next];
+              nextPost = {
+                ...current,
+                variant: next,
+                line1: s.line1,
+                line2: s.line2,
+                sub: s.sub,
+                cta: DEFAULT_CTA,
+                status: "awaiting"
+              };
+              nextPost.caption = buildCaption(nextPost, id);
+              ideaLabel = `Job idea ${next + 1} of ${pack.length}`;
+            } else {
+              const list = SUGGESTIONS[id] || SUGGESTIONS["001"];
+              const next = ((current.variant || 0) + 1) % list.length;
+              const s = list[next];
+              // Rotate through the full gallery roll (Jon’s uploads + stock)
+              const roll = galleryRoll();
+              const dayOffset = Math.max(0, SLOTS.findIndex(x => x.id === id));
+              const photoCount = Math.max(roll.length, 1);
+              const photoIdx = (next * 5 + dayOffset * 11) % photoCount;
+              const picked = roll[photoIdx];
+              const photoId = picked?.id || s.photo || "stock-001";
+              nextPost = {
+                ...current,
+                variant: next,
+                photo: photoId,
+                customPhoto: (picked?.kind === "upload" || String(photoId).startsWith("up-")) ? photoId : null,
+                beforePhoto: null,
+                afterPhoto: null,
+                source: "",
+                line1: s.line1,
+                line2: s.line2,
+                sub: s.sub,
+                cta: DEFAULT_CTA,
+                status: "awaiting"
+              };
+              nextPost.caption = buildCaption(nextPost, id);
+              ideaLabel = `Idea ${next + 1} of ${list.length}`;
+            }
             state[id] = nextPost;
             saveState(state);
-            const ideaLabel = `Idea ${next + 1} of ${list.length}`;
             if (editorOpen && id === selectedId) {
               fillFormFromPost(state[id]);
               renderPhotoRow();
               refreshCardCreative();
-              setStudioStatus(`${ideaLabel} — new photo + copy. Keep editing or tap Done.`, "ok");
+              setStudioStatus(
+                nextPost.source === "job"
+                  ? `${ideaLabel} — same photos, fresh copy. Keep editing or tap Done.`
+                  : `${ideaLabel} — new photo + copy. Keep editing or tap Done.`,
+                "ok"
+              );
               renderWeekBar(state);
             } else if (editorOpen) {
               const editingId = selectedId;
@@ -1972,6 +2333,267 @@
     }
   }
 
+
+  /* —— Job-led post flow —— */
+  const BASE_HASHTAGS = "#OnARollGarageDoors #GarageDoors #Poole #Bournemouth #Christchurch #Dorset #FamilyRun #FreeSurvey";
+  const DOOR_HASHTAGS = {
+    roller: "#RollerGarageDoor",
+    sectional: "#SectionalGarageDoor",
+    "up-and-over": "#UpAndOverGarageDoor",
+    "side-hinged": "#SideHingedGarageDoor",
+    repair: "#GarageDoorRepair",
+    other: "#GarageDoors"
+  };
+  const DOOR_LABEL = {
+    roller: "roller",
+    sectional: "sectional",
+    "up-and-over": "up-and-over",
+    "side-hinged": "side-hinged",
+    repair: "repair",
+    other: "garage door"
+  };
+
+  function titleTown(town) {
+    return String(town || "").trim().replace(/\s+/g, " ").replace(/\b\w/g, ch => ch.toUpperCase());
+  }
+
+  function townHashtag(town) {
+    const tag = String(town || "").trim().replace(/[^A-Za-z0-9]+/g, "");
+    return tag ? `#${tag}` : "";
+  }
+
+  function uniqueTags(...blocks) {
+    const seen = new Set();
+    const out = [];
+    for (const block of blocks) {
+      for (const t of String(block || "").split(/\s+/).filter(Boolean)) {
+        const key = t.toLowerCase();
+        if (!seen.has(key)) { seen.add(key); out.push(t); }
+      }
+    }
+    return out.join(" ");
+  }
+
+  function jobHashtags(town, doorType) {
+    return uniqueTags(BASE_HASHTAGS, DOOR_HASHTAGS[doorType] || "", townHashtag(town));
+  }
+
+  function noteSentence(note) {
+    const n = String(note || "").trim();
+    if (!n) return "";
+    return /[.!?]$/.test(n) ? n : `${n}.`;
+  }
+
+  function jobHeadlinePack(doorType, town, note) {
+    const t = titleTown(town) || "Poole";
+    const n = String(note || "").trim();
+    const warranty = "5-year warranty";
+    const packs = {
+      roller: [
+        { line1: "New roller door.", line2: `Fitted in ${t}.`, sub: `Made-to-measure roller in ${t}, with a ${warranty}.` },
+        { line1: "A fresh roller.", line2: `In ${t}.`, sub: `Quiet, remote-controlled roller, fitted locally. ${warranty}.` },
+        { line1: "Old door out.", line2: "New roller in.", sub: `Roller garage door fitted in ${t}. ${warranty}.` }
+      ],
+      sectional: [
+        { line1: "New sectional door.", line2: `Fitted in ${t}.`, sub: `Sectional garage door in ${t}, with a ${warranty}.` },
+        { line1: "Sectional door.", line2: `Done in ${t}.`, sub: `Made-to-measure sectional, fitted tidy. ${warranty}.` },
+        { line1: "A better fit.", line2: `Sectional, ${t}.`, sub: `New sectional garage door, local install, ${warranty}.` }
+      ],
+      "up-and-over": [
+        { line1: "New up-and-over.", line2: `Fitted in ${t}.`, sub: `Up-and-over garage door in ${t}, with a ${warranty}.` },
+        { line1: "Up-and-over door.", line2: `Done in ${t}.`, sub: `Fitted tidy in ${t}. ${warranty}.` },
+        { line1: "Fresh up-and-over.", line2: `Local ${t} fit.`, sub: `New up-and-over door, local install, ${warranty}.` }
+      ],
+      "side-hinged": [
+        { line1: "New side-hinged doors.", line2: `Fitted in ${t}.`, sub: `Side-hinged garage doors in ${t}, with a ${warranty}.` },
+        { line1: "Side-hinged doors.", line2: `Done in ${t}.`, sub: `Fitted tidy in ${t}. ${warranty}.` },
+        { line1: "A proper pair.", line2: `Side-hinged, ${t}.`, sub: `New side-hinged doors, local install, ${warranty}.` }
+      ],
+      repair: [
+        { line1: "Garage door repair.", line2: `Sorted in ${t}.`, sub: `Local repair in ${t}. Honest work, no hard sell.` },
+        { line1: "Door repair.", line2: `Done in ${t}.`, sub: `Repaired in ${t} by a local family-run team.` },
+        { line1: "Fixed properly.", line2: `In ${t}.`, sub: `Garage door repair in ${t}. Straight talk, tidy finish.` }
+      ],
+      other: [
+        { line1: "New garage door.", line2: `Fitted in ${t}.`, sub: `Made-to-measure door in ${t}, with a ${warranty}.` },
+        { line1: "A new door.", line2: `In ${t}.`, sub: `Fitted locally in ${t}. ${warranty}.` },
+        { line1: "Old door out.", line2: `New door in.`, sub: `New garage door fitted in ${t}, with a ${warranty}.` }
+      ]
+    };
+    const list = packs[doorType] || packs.other;
+    return list.map(s => ({ ...s, sub: n ? `${s.sub.replace(/\.$/, "")}. ${noteSentence(n)}` : s.sub }));
+  }
+
+  function jobCaptionBody(post) {
+    const t = titleTown(post.town);
+    const type = DOOR_LABEL[post.doorType] || "garage door";
+    const note = noteSentence(post.jobNote);
+    const ba = hasBeforeAfter(post) ? " Before and after from the job." : "";
+    if (post.doorType === "repair") {
+      const replaced = /replac/i.test(post.jobNote || "");
+      const warranty = replaced ? " Replacement parts we fit come with a 5-year warranty." : "";
+      return `Garage door repair${t ? ` in ${t}` : ""}.${note ? ` ${note}` : ""}${ba}${warranty} Local, honest work.`;
+    }
+    const where = t ? ` in ${t}` : "";
+    const noun = post.doorType === "other" ? "garage door" : `${type} garage door`;
+    return `New ${noun} fitted${where}.${note ? ` ${note}` : ""}${ba} Made-to-measure, fitted locally, 5-year warranty.`;
+  }
+
+  const jobUploads = { afterId: null, beforeId: null };
+
+  function setJobStatus(msg, kind) {
+    const el = document.getElementById("jobStatus");
+    if (!el) return;
+    el.textContent = msg || "";
+    el.className = "status-line" + (kind ? " " + kind : "");
+  }
+
+  function firstAwaitingId(state) {
+    const st = state || ensureState();
+    const open = SLOTS.find(s => st[s.id]?.status !== "approved");
+    return (open || SLOTS[0]).id;
+  }
+
+  function renderJobDayPick() {
+    const wrap = document.getElementById("jobDayPick");
+    if (!wrap) return;
+    const state = ensureState();
+    const preferred = firstAwaitingId(state);
+    wrap.innerHTML = SLOTS.map(s => {
+      const st = state[s.id]?.status === "approved" ? " (approved)" : "";
+      const checked = s.id === preferred ? " checked" : "";
+      return `<label><input type="radio" name="jobDay" value="${s.id}"${checked}><span>${s.day}${st}</span></label>`;
+    }).join("");
+  }
+
+  function showJobForm(open) {
+    const form = document.getElementById("jobForm");
+    const intro = document.getElementById("jobIntro");
+    if (!form || !intro) return;
+    form.hidden = !open;
+    intro.hidden = open;
+    if (open) {
+      renderJobDayPick();
+      setJobStatus("");
+    }
+  }
+
+  function resetJobForm() {
+    jobUploads.afterId = null;
+    jobUploads.beforeId = null;
+    const form = document.getElementById("jobForm");
+    if (form) form.reset();
+    const afterImg = document.getElementById("jobAfterPreview");
+    const beforeImg = document.getElementById("jobBeforePreview");
+    if (afterImg) { afterImg.hidden = true; afterImg.removeAttribute("src"); }
+    if (beforeImg) { beforeImg.hidden = true; beforeImg.removeAttribute("src"); }
+    document.getElementById("jobAfterSlot")?.classList.remove("has-img");
+    document.getElementById("jobBeforeSlot")?.classList.remove("has-img");
+    setJobStatus("");
+  }
+
+  async function handleJobPhoto(which, file) {
+    if (!file) return;
+    const dataUrl = await compressUpload(file);
+    const id = "up-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+    rememberUpload(id, dataUrl);
+    const st = ensureState();
+    st._uploads = st._uploads || {};
+    st._uploads[id] = dataUrl;
+    saveState(st);
+    jobUploads[which === "before" ? "beforeId" : "afterId"] = id;
+    const img = document.getElementById(which === "before" ? "jobBeforePreview" : "jobAfterPreview");
+    const slot = document.getElementById(which === "before" ? "jobBeforeSlot" : "jobAfterSlot");
+    if (img) { img.src = dataUrl; img.hidden = false; }
+    slot?.classList.add("has-img");
+  }
+
+  function applyJobToSlot() {
+    const town = titleTown(document.getElementById("jobTown").value);
+    const doorType = document.getElementById("jobDoor").value;
+    const note = document.getElementById("jobNote").value.trim();
+    const dayEl = document.querySelector("#jobDayPick input[name='jobDay']:checked");
+    const slotId = dayEl?.value || firstAwaitingId();
+    if (!jobUploads.afterId) {
+      setJobStatus("Add a photo from the job — install photos are the main content.", "err");
+      return;
+    }
+    if (!town) {
+      setJobStatus("Add the town so the post stays local and honest.", "err");
+      return;
+    }
+    if (!doorType) {
+      setJobStatus("Choose the door type.", "err");
+      return;
+    }
+    const state = ensureState();
+    if (state[slotId]?.status === "approved") {
+      const ok = confirm(`Replace the approved ${dayName(slotId)} post with this job?`);
+      if (!ok) return;
+    }
+    const pack = jobHeadlinePack(doorType, town, note);
+    const s = pack[0];
+    const post = {
+      ...state[slotId],
+      source: "job",
+      town,
+      doorType,
+      jobNote: note,
+      photo: jobUploads.afterId,
+      customPhoto: jobUploads.afterId,
+      afterPhoto: jobUploads.afterId,
+      beforePhoto: jobUploads.beforeId || null,
+      line1: s.line1,
+      line2: s.line2,
+      sub: s.sub,
+      cta: DEFAULT_CTA,
+      showPrice: false,
+      priceAmount: "",
+      priceFrom: DEFAULT_PRICE_FROM,
+      status: "awaiting",
+      variant: 0
+    };
+    post.caption = buildCaption(post, slotId);
+    state[slotId] = post;
+    saveState(state);
+    showJobForm(false);
+    resetJobForm();
+    renderWeekBar(state);
+    renderAll(state);
+    openEditor(slotId);
+    setStudioStatus(`Drafted a ${dayName(slotId)} post from the ${town} job.`, "ok");
+  }
+
+  function wireJobComposer() {
+    document.getElementById("btnNewJob")?.addEventListener("click", () => showJobForm(true));
+    document.getElementById("btnJobCancel")?.addEventListener("click", () => {
+      showJobForm(false);
+      resetJobForm();
+    });
+    document.getElementById("jobAfter")?.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try { await handleJobPhoto("after", file); }
+      catch (err) {
+        console.error(err);
+        setJobStatus("Couldn’t read that photo. Try a JPG or PNG.", "err");
+      }
+    });
+    document.getElementById("jobBefore")?.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try { await handleJobPhoto("before", file); }
+      catch (err) {
+        console.error(err);
+        setJobStatus("Couldn’t read that photo. Try a JPG or PNG.", "err");
+      }
+    });
+    document.getElementById("jobForm")?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      applyJobToSlot();
+    });
+  }
+
   document.getElementById("emailPete").addEventListener("click", () => {
     const state = ensureState();
     const approved = SLOTS.filter(s => state[s.id]?.status === "approved").length;
@@ -2003,6 +2625,7 @@
 
     selectedId = "001";
     editorOpen = false;
+    wireJobComposer();
     renderWeekBar(state);
     renderAll(state);
     window.addEventListener("resize", () => scaleCardCreatives());
