@@ -24,3 +24,5 @@ Nothing auto-posts from this site.
 | OAR-SM-003 | Free survey CTA | `OAR-SM-003.jpg` |
 
 Contact on posts: 01202 553603 · WhatsApp 07534 066813
+
+For architecture, auth, deploy, testing and what's next, see [HANDOFF.md](HANDOFF.md). Phone screenshots are in [docs/screenshots](docs/screenshots/).

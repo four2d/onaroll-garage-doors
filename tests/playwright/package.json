@@ -1,0 +1,12 @@
+{
+  "name": "onaroll-playwright",
+  "private": true,
+  "type": "module",
+  "description": "Phone-size Playwright tests for the On a Roll post tool, against the live Worker.",
+  "scripts": {
+    "test:simple": "node simple-view.spec.mjs",
+    "test:ready": "node ready-now.spec.mjs",
+    "test:mojibake": "node mojibake.spec.mjs",
+    "test:login": "node code-login.spec.mjs"
+  }
+}
