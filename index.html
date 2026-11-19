@@ -590,9 +590,30 @@
 
     .s-stack{display:flex; flex-direction:column; gap:1.35rem; margin:1.25rem 0 0}
     .s-card{
+      position:relative;
       background:var(--card); border:1px solid var(--line); border-radius:18px;
       box-shadow:var(--shadow); overflow:hidden; padding:0 0 1.05rem;
     }
+    .s-card.is-busy{cursor:wait}
+    .s-busy{
+      position:absolute; inset:0; z-index:6;
+      display:flex; align-items:center; justify-content:center;
+      background:rgba(247,249,251,.78);
+      padding:1.4rem 1.2rem;
+    }
+    .s-busy[hidden]{display:none !important}
+    .s-busy-inner{text-align:center; max-width:16rem}
+    .s-busy-inner p{
+      margin:.85rem 0 0; font-size:1.05rem; font-weight:750; color:var(--ink);
+      line-height:1.35;
+    }
+    .s-spinner{
+      display:block; width:2.1rem; height:2.1rem; margin:0 auto;
+      border:3px solid #c5d0da; border-top-color:var(--ink);
+      border-radius:50%; animation:s-spin .7s linear infinite;
+    }
+    @keyframes s-spin{to{transform:rotate(360deg)}}
+
     .s-when{
       margin:0; padding:.85rem 1rem .15rem; font-size:.88rem; font-weight:700;
       color:var(--muted);
@@ -618,7 +639,9 @@
     }
     .s-btn:disabled{opacity:.55; cursor:wait}
     .s-btn-yes{background:var(--ok); color:#fff}
-    .s-btn-yes[aria-pressed="true"]{background:#0f5c38}
+    .s-btn-yes[aria-pressed="true"]{background:#0f5c38; box-shadow:inset 0 0 0 1px rgba(255,255,255,.15)}
+    .s-links{display:flex; justify-content:center; align-items:center; gap:.25rem; flex-wrap:wrap; padding:0 .4rem}
+    .s-undo-link{color:var(--muted)}
     .s-btn-next, .s-btn-photo{
       background:#fff; color:var(--ink); border:1.5px solid var(--line);
     }
@@ -802,7 +825,7 @@
   <header>
     <div class="row">
       <div>
-        <h1>This week’s posts <span class="pill" id="verPill">v46</span></h1>
+        <h1>This week’s posts <span class="pill" id="verPill">v47</span></h1>
         <p>This week’s posts are ready – review, edit, approve. Nothing goes live until they’re published.</p>
         <p class="sync-status" id="syncStatus" role="status"></p>
         <p class="head-nav"><a href="archive/">Past weeks</a> · <button type="button" class="s-simple-link" id="btnSimpleView">Simple view</button></p>
@@ -3298,18 +3321,27 @@
     const approved = post.status === "approved";
     return `
       <article class="s-card" data-simple-card="${slot.id}">
+        <div class="s-busy" data-simple-busy hidden>
+          <div class="s-busy-inner">
+            <span class="s-spinner" aria-hidden="true"></span>
+            <p data-simple-busy-text>Writing a new post…</p>
+          </div>
+        </div>
         <p class="s-when${approved ? " is-ok" : ""}">${escapeHTML(postingLine(slot, post))}</p>
         <div class="s-shot" data-shot>
           <div class="s-stage">${creativeHTML(post, "fb")}</div>
         </div>
         <p class="s-caption">${escapeHTML(post.caption || "")}</p>
         <div class="s-actions">
-          <button type="button" class="s-btn s-btn-yes" data-simple="approve" aria-pressed="${approved ? "true" : "false"}">${approved ? "Looks good ✓" : "Looks good ✓"}</button>
+          <button type="button" class="s-btn s-btn-yes" data-simple="approve" aria-pressed="${approved ? "true" : "false"}">${approved ? "Approved ✓" : "Looks good ✓"}</button>
           <button type="button" class="s-btn s-btn-next" data-simple="regen">Try another</button>
           <button type="button" class="s-btn s-btn-photo" data-simple="photo">Change photo</button>
         </div>
         <p class="s-msg" data-simple-msg></p>
-        <button type="button" class="s-edit-link" data-simple="edit">Edit words</button>
+        <div class="s-links">
+          <button type="button" class="s-edit-link" data-simple="edit">Edit words</button>
+          ${approved ? `<button type="button" class="s-edit-link s-undo-link" data-simple="undo">Undo</button>` : ""}
+        </div>
         <div class="s-edit" data-simple-edit hidden>
           <label class="sr-only" for="simpleCaption-${slot.id}">Caption</label>
           <textarea id="simpleCaption-${slot.id}" maxlength="2200">${escapeHTML(post.caption || "")}</textarea>
@@ -3352,19 +3384,50 @@
   function approveSimple(id) {
     const state = loadState();
     if (!state[id]) return;
+    if (state[id].status === "approved") {
+      setSimpleMsg(id, "Nice one — that’s already approved.", "is-ok");
+      return;
+    }
     state[id].status = "approved";
     saveState(state);
     setSimpleMsg(id, "Nice one — that’s approved.", "is-ok");
+  }
+
+  function undoSimple(id) {
+    const state = loadState();
+    if (!state[id]) return;
+    state[id].status = "awaiting";
+    saveState(state);
+    setSimpleMsg(id, "Okay — this one isn’t approved yet.", "");
+  }
+
+  function setSimpleBusy(id, text) {
+    const card = document.querySelector(`[data-simple-card="${id}"]`);
+    if (!card) return;
+    card.classList.add("is-busy");
+    card.setAttribute("aria-busy", "true");
+    card.querySelectorAll("button, textarea").forEach(el => { el.disabled = true; });
+    const busy = card.querySelector("[data-simple-busy]");
+    const label = card.querySelector("[data-simple-busy-text]");
+    if (label && text) label.textContent = text;
+    if (busy) busy.hidden = false;
+  }
+  function clearSimpleBusy(id) {
+    const card = document.querySelector(`[data-simple-card="${id}"]`);
+    if (!card) return;
+    card.classList.remove("is-busy");
+    card.removeAttribute("aria-busy");
+    card.querySelectorAll("button, textarea").forEach(el => { el.disabled = false; });
+    const busy = card.querySelector("[data-simple-busy]");
+    if (busy) busy.hidden = true;
   }
 
   async function regenerateSimple(id, opts = {}) {
     const slot = SLOTS.find(s => s.id === id);
     const day = (slot?.day || id).toLowerCase();
     const newPhoto = !!opts.newPhoto;
-    const selector = `[data-simple-card="${id}"] [data-simple="${newPhoto ? "photo" : "regen"}"]`;
-    const btn = document.querySelector(selector);
-    if (btn) btn.disabled = true;
-    setSimpleMsg(id, newPhoto ? "Finding another photo…" : "Finding another idea…");
+    const busyText = newPhoto ? "Finding another photo…" : "Writing a new post…";
+    setSimpleBusy(id, busyText);
     try {
       const path = `/regenerate/${encodeURIComponent(day)}` + (newPhoto ? "?photo=new" : "");
       const res = await api("POST", path);
@@ -3389,7 +3452,7 @@
       console.warn("regenerate", err);
       setSimpleMsg(id, newPhoto ? "Couldn’t change the photo just now. Try again in a moment." : "Couldn’t get another idea just now. Try again in a moment.", "is-err");
     } finally {
-      if (btn) btn.disabled = false;
+      clearSimpleBusy(id);
     }
   }
 
@@ -3600,6 +3663,7 @@
       const id = card.getAttribute("data-simple-card");
       const action = btn.getAttribute("data-simple");
       if (action === "approve") approveSimple(id);
+      if (action === "undo") undoSimple(id);
       if (action === "regen") regenerateSimple(id);
       if (action === "photo") regenerateSimple(id, { newPhoto: true });
       if (action === "edit") openCaptionEditor(id);
