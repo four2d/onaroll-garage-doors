@@ -143,6 +143,7 @@ async function route(request, env, path) {
       ok: true,
       name: "onaroll-posts",
       storage: "kv",
+      typography: TYPOGRAPHY_MARK,
     });
   }
 
@@ -305,6 +306,7 @@ function publishPlaceholder(channel) {
 /* —— Board —— */
 
 async function getBoard(env) {
+  await repairStoredRecords(env);
   const board = await env.KV.get(BOARD_KEY, "json");
   if (!board) return json(200, { updatedAt: null });
   return json(200, board);
@@ -322,7 +324,7 @@ async function putBoard(request, env) {
     return json(400, { error: "board must be a JSON object" });
   }
 
-  const incoming = { ...body };
+  const incoming = repairValue({ ...body });
   const base = clientBaseVersion(request, incoming);
   delete incoming.baseUpdatedAt;
 
@@ -336,7 +338,7 @@ async function putBoard(request, env) {
           error: "conflict",
           message:
             "Board has been updated since your last fetch. Merge with the current board and retry.",
-          current: existing,
+          current: repairValue(existing),
         });
       }
     }
@@ -736,8 +738,109 @@ function methodNotAllowed(allow) {
 function json(status, body) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json; charset=utf-8" },
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "X-Content-Type-Options": "nosniff",
+    },
   });
+}
+
+/* —— UTF-8 typography: repair UTF-8 that was decoded as Latin-1 —— */
+
+const TYPOGRAPHY_MARK = "— · ’ “” £ →";
+
+function looksLikeMojibake(str) {
+  return /[ÂÃâ][-ÿ]/.test(str)
+    || /â€[”–“˜™]|Â·|Â£|Ã¢/.test(str);
+}
+
+function applyMojibakeReplacements(str) {
+  return str
+    .replace(/â/g, "—")
+    .replace(/â/g, "–")
+    .replace(/â/g, "‘")
+    .replace(/â/g, "’")
+    .replace(/â/g, "“")
+    .replace(/â/g, "”")
+    .replace(/â¦/g, "…")
+    .replace(/â/g, "→")
+    .replace(/Â·/g, "·")
+    .replace(/Â£/g, "£")
+    .replace(/â¬/g, "€")
+    .replace(/â€”/g, "—")
+    .replace(/â€“/g, "–")
+    .replace(/â€˜/g, "‘")
+    .replace(/â€™/g, "’")
+    .replace(/â€œ/g, "“")
+    .replace(/â€/g, "”")
+    .replace(/â€¦/g, "…")
+    .replace(/Â·/g, "·")
+    .replace(/Â£/g, "£");
+}
+
+function decodeLatin1Utf8(str) {
+  if (!looksLikeMojibake(str)) return applyMojibakeReplacements(str);
+  const bytes = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) {
+    const c = str.charCodeAt(i);
+    if (c > 255) return applyMojibakeReplacements(str);
+    bytes[i] = c;
+  }
+  try {
+    const decoded = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    return decoded === str ? applyMojibakeReplacements(str) : decoded;
+  } catch {
+    return applyMojibakeReplacements(str);
+  }
+}
+
+function repairMojibakeString(input) {
+  if (typeof input !== "string" || !input) return input;
+  let out = input;
+  for (let i = 0; i < 3; i++) {
+    const next = decodeLatin1Utf8(out);
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+}
+
+function repairValue(value) {
+  if (typeof value === "string") return repairMojibakeString(value);
+  if (Array.isArray(value)) return value.map(repairValue);
+  if (value && typeof value === "object") {
+    const out = {};
+    for (const [key, val] of Object.entries(value)) out[key] = repairValue(val);
+    return out;
+  }
+  return value;
+}
+
+async function repairAndStore(env, key, data) {
+  if (data == null) return data;
+  const repaired = repairValue(data);
+  if (JSON.stringify(repaired) === JSON.stringify(data)) return repaired;
+  if (repaired && typeof repaired === "object" && !Array.isArray(repaired) && Object.prototype.hasOwnProperty.call(data, "updatedAt")) {
+    repaired.updatedAt = new Date().toISOString();
+  }
+  await env.KV.put(key, JSON.stringify(repaired));
+  return repaired;
+}
+
+async function repairStoredRecords(env) {
+  for (const key of [BOARD_KEY, SCHEDULE_KEY, HISTORY_KEY, NOTES_KEY]) {
+    const data = await env.KV.get(key, "json");
+    if (data) await repairAndStore(env, key, data);
+  }
+  const index = await env.KV.get(ARCHIVE_INDEX, "json");
+  if (Array.isArray(index) && index.length) {
+    await repairAndStore(env, ARCHIVE_INDEX, index);
+    for (const entry of index.slice(0, 40)) {
+      if (!entry || !entry.id) continue;
+      const week = await env.KV.get(ARCHIVE_DATA(entry.id), "json");
+      if (week) await repairAndStore(env, ARCHIVE_DATA(entry.id), week);
+    }
+  }
 }
 
 /* —— Auth & CORS —— */
@@ -1500,7 +1603,8 @@ function templateCopy(slot, weekId, context = {}) {
 
 async function loadHistory(env) {
   const data = (await env.KV.get(HISTORY_KEY, "json")) || { weeks: [] };
-  const weeks = Array.isArray(data) ? data : data.weeks || [];
+  const repaired = await repairAndStore(env, HISTORY_KEY, data);
+  const weeks = Array.isArray(repaired) ? repaired : repaired.weeks || [];
   return weeks.filter(Boolean).slice(-HISTORY_WEEKS);
 }
 
@@ -1684,7 +1788,8 @@ function assignNotesToSlots(notes, angles) {
 
 async function loadNotes(env) {
   const data = (await env.KV.get(NOTES_KEY, "json")) || { notes: [] };
-  const notes = Array.isArray(data) ? data : data.notes || [];
+  const repaired = await repairAndStore(env, NOTES_KEY, data);
+  const notes = Array.isArray(repaired) ? repaired : repaired.notes || [];
   return notes.filter((n) => n && n.id && n.text);
 }
 
@@ -2081,8 +2186,9 @@ function weekFriday(monday) {
 
 async function loadSchedule(env) {
   const data = (await env.KV.get(SCHEDULE_KEY, "json")) || { weeks: [] };
-  const weeks = Array.isArray(data) ? data : data.weeks || [];
-  return { weeks: weeks.filter((w) => w && w.weekId), updatedAt: data.updatedAt || null };
+  const repaired = await repairAndStore(env, SCHEDULE_KEY, data);
+  const weeks = Array.isArray(repaired) ? repaired : repaired.weeks || [];
+  return { weeks: weeks.filter((w) => w && w.weekId), updatedAt: repaired.updatedAt || null };
 }
 
 async function saveSchedule(env, schedule) {

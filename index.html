@@ -1206,14 +1206,77 @@
     return state;
   }
 
+  function looksLikeMojibake(str) {
+    return /[ÂÃâ][-ÿ]/.test(str)
+      || /â€[”–“˜™]|Â·|Â£|Ã¢/.test(str);
+  }
+  function applyMojibakeReplacements(str) {
+    return str
+      .replace(/â/g, "—")
+      .replace(/â/g, "–")
+      .replace(/â/g, "‘")
+      .replace(/â/g, "’")
+      .replace(/â/g, "“")
+      .replace(/â/g, "”")
+      .replace(/â¦/g, "…")
+      .replace(/â/g, "→")
+      .replace(/Â·/g, "·")
+      .replace(/Â£/g, "£")
+      .replace(/â¬/g, "€")
+      .replace(/â€”/g, "—")
+      .replace(/â€“/g, "–")
+      .replace(/â€˜/g, "‘")
+      .replace(/â€™/g, "’")
+      .replace(/â€œ/g, "“")
+      .replace(/â€/g, "”")
+      .replace(/â€¦/g, "…")
+      .replace(/Â·/g, "·")
+      .replace(/Â£/g, "£");
+  }
+  function decodeLatin1Utf8(str) {
+    if (!looksLikeMojibake(str)) return applyMojibakeReplacements(str);
+    const bytes = new Uint8Array(str.length);
+    for (let i = 0; i < str.length; i++) {
+      const c = str.charCodeAt(i);
+      if (c > 255) return applyMojibakeReplacements(str);
+      bytes[i] = c;
+    }
+    try {
+      const decoded = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      return decoded === str ? applyMojibakeReplacements(str) : decoded;
+    } catch {
+      return applyMojibakeReplacements(str);
+    }
+  }
+  function repairMojibakeString(input) {
+    if (typeof input !== "string" || !input) return input;
+    let out = input;
+    for (let i = 0; i < 3; i++) {
+      const next = decodeLatin1Utf8(out);
+      if (next === out) break;
+      out = next;
+    }
+    return out;
+  }
+  function repairValue(value) {
+    if (typeof value === "string") return repairMojibakeString(value);
+    if (Array.isArray(value)) return value.map(repairValue);
+    if (value && typeof value === "object") {
+      const out = {};
+      for (const [key, val] of Object.entries(value)) out[key] = repairValue(val);
+      return out;
+    }
+    return value;
+  }
+
   function loadState() {
     try {
       const current = localStorage.getItem(KEY);
-      if (current) return JSON.parse(current || "{}") || {};
+      if (current) return repairValue(JSON.parse(current || "{}") || {});
       for (const oldKey of PREV_KEYS) {
         const raw = localStorage.getItem(oldKey);
         if (!raw) continue;
-        const migrated = migrateState(JSON.parse(raw) || {});
+        const migrated = repairValue(migrateState(JSON.parse(raw) || {}));
         try { localStorage.setItem(KEY, JSON.stringify(migrated)); }
         catch (err) { console.warn("could not save migrated state", err); }
         return migrated;
@@ -1442,7 +1505,7 @@
         <div class="cr-rule"></div>
         <div class="cr-h1"><span class="l">${escapeHTML(post.line1)}</span><span class="l">${escapeHTML(post.line2)}</span></div>
         <div class="cr-sub">${escapeHTML(post.sub)}</div>
-        <div class="cr-cta"><span class="cr-dot"></span> ${escapeHTML(post.cta || DEFAULT_CTA)}</div>
+        <div class="cr-cta"><span class="cr-dot"></span> ${escapeHTML(repairMojibakeString(post.cta || DEFAULT_CTA))}</div>
       </div>
     </div>`;
   }
@@ -1490,6 +1553,7 @@
   }
 
   async function bake(post, format) {
+    window.__oarBake = bake;
     const W = 1080;
     const H = format === "ig" ? 1080 : 1350;
     const cacheKey = JSON.stringify({
@@ -1605,11 +1669,11 @@
     let y = H - bottom;
 
     // measure block bottom-up then draw top-down
-    const lines = [post.line1 || "", post.line2 || ""];
+    const lines = [repairMojibakeString(post.line1 || ""), repairMojibakeString(post.line2 || "")];
     const fontSize = fitHeadline(ctx, lines, maxTextW, 52);
     ctx.font = `500 24px Helvetica, Arial, sans-serif`;
-    const subLines = wrapWords(ctx, post.sub || "", maxTextW);
-    const cta = post.cta || DEFAULT_CTA;
+    const subLines = wrapWords(ctx, repairMojibakeString(post.sub || ""), maxTextW);
+    const cta = repairMojibakeString(post.cta || DEFAULT_CTA);
 
     const h1Block = fontSize * 1.08 * lines.length;
     const subBlock = subLines.length * 32;
@@ -1669,6 +1733,7 @@
     ctx.closePath();
   }
 
+  window.__oarBake = bake;
   async function bakeBoth(post) {
     const [fb, ig] = await Promise.all([bake(post, "fb"), bake(post, "ig")]);
     return { fb, ig };
@@ -3039,7 +3104,7 @@
     return Number.isFinite(t) ? t : 0;
   }
   function mergeBoards(local, remote) {
-    const out = { ...(remote || {}) };
+    const out = { ...(repairValue(remote) || {}) };
     for (const slot of SLOTS) {
       const a = local?.[slot.id];
       const b = remote?.[slot.id];
@@ -3103,7 +3168,7 @@
         return;
       }
       if (res.status === 409) {
-        const data = await res.json().catch(() => ({}));
+        const data = repairValue(await res.json().catch(() => ({})));
         const current = data.current || {};
         if (editorOpen) commitSelected({ silent: true, skipSync: true });
         const merged = mergeBoards(loadState(), current);
@@ -3148,7 +3213,7 @@
       throw new Error("unauthorized");
     }
     if (!res.ok) throw new Error("board fetch failed");
-    const remote = await res.json();
+    const remote = repairValue(await res.json());
     const remoteHasPosts = !!(remote && SLOTS.some(s => remote[s.id] && String(remote[s.id].line1 || "").trim()));
     if (!remote || !remote.updatedAt || !remoteHasPosts) {
       boardBase = remote && remote.updatedAt ? remote.updatedAt : null;
@@ -3465,7 +3530,7 @@
     scheduleInFlight = true;
     try {
       const res = await api("POST", "/schedule", { body: boardPayload(state) });
-      const data = await res.json().catch(() => ({}));
+      const data = repairValue(await res.json().catch(() => ({})));
       if (!res.ok || !data.ok) {
         if (data.error === "queue_full") {
           const until = data.schedule && data.schedule.sortedUntil;
@@ -3500,7 +3565,7 @@
     try {
       for (let attempt = 0; attempt < 40; attempt++) {
         const res = await api("POST", "/ensure-drafts");
-        const data = await res.json().catch(() => ({}));
+        const data = repairValue(await res.json().catch(() => ({})));
         if (res.status === 202 || data.pending) {
           await new Promise(r => setTimeout(r, 1500));
           continue;

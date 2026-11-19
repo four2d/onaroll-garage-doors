@@ -5,6 +5,15 @@ between devices, keep a photo library that is not capped by `localStorage`,
 archive an approved week without downloading two files and pushing them
 to GitHub, and write three fresh drafts as soon as the board is opened.
 
+JSON responses are served as `application/json; charset=utf-8`. If you ever
+deploy the Worker by base64-encoding the source, decode it with
+`TextDecoder` (`Uint8Array.from(atob(b64), c => c.charCodeAt(0))`), not
+plain `atob`. `atob` returns a Latin-1 binary string, and putting that in
+a Blob re-encodes typographic characters (`—`, `·`, `’`, `→`) as mojibake
+(`â`, `Â·`). `GET /` includes a `typography` check string. Board,
+schedule, history, notes and archive records are repaired in place if they
+still contain that mojibake.
+
 Live URL (workers.dev):
 
 ```
